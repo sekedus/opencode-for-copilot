@@ -1,0 +1,137 @@
+/** Minimal REST client for the local opencode v2 server (`/api/*`). */
+
+export class OctHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly body: string,
+    public readonly path: string,
+  ) {
+    super(`opencode request failed: ${path} -> HTTP ${status}`);
+  }
+}
+
+function authHeader(password: string): Record<string, string> {
+  if (!password) {
+    return {};
+  }
+  // Opencode v2 accepts only the `opencode` username.
+  return { Authorization: `Basic ${Buffer.from(`opencode:${password}`, "utf8").toString("base64")}` };
+}
+
+function joinUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+/**
+ * JSON request helper. Never includes the password in errors or logs —
+ * only the path and HTTP status are exposed.
+ */
+export async function requestJson(
+  baseUrl: string,
+  password: string,
+  method: string,
+  path: string,
+  body?: unknown,
+  timeoutMs = 15000,
+): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(joinUrl(baseUrl, path), {
+      method,
+      headers: { ...authHeader(password), "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      throw new OctHttpError(response.status, text.slice(0, 500), path);
+    }
+    return text ? (JSON.parse(text) as unknown) : undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export interface ServerInfo {
+  version: string;
+  pid: number;
+  urls: string[];
+  paths: { tmp: string };
+}
+
+/** `GET /api/info` — health check and server identity. */
+export async function getInfo(baseUrl: string, password: string, timeoutMs = 5000): Promise<ServerInfo> {
+  const raw = (await requestJson(baseUrl, password, "GET", "/api/info", undefined, timeoutMs)) as ServerInfo;
+  return raw;
+}
+
+export interface ModelInfo {
+  id: string;
+  modelID: string;
+  providerID: string;
+  family?: string;
+  name?: string;
+}
+
+export interface ModelList {
+  location: { directory: string };
+  data: ModelInfo[];
+}
+
+/**
+ * `GET /api/model` — snapshot of available models ordered by release date.
+ * The directory query is optional; the server falls back to its default.
+ */
+export async function listModels(
+  baseUrl: string,
+  password: string,
+  directory?: string,
+  timeoutMs = 15000,
+): Promise<ModelList> {
+  const path = directory ? `/api/model?location%5Bdirectory%5D=${encodeURIComponent(directory)}` : "/api/model";
+  const raw = (await requestJson(baseUrl, password, "GET", path, undefined, timeoutMs)) as ModelList;
+  return raw;
+}
+
+export interface SessionInfo {
+  id: string;
+  title?: string;
+  [key: string]: unknown;
+}
+
+/** `POST /api/session` — create a session at the requested location. */
+export async function createSession(
+  baseUrl: string,
+  password: string,
+  input: { title?: string; directory?: string },
+  timeoutMs = 15000,
+): Promise<SessionInfo> {
+  const body: Record<string, unknown> = {};
+  if (input.title) {
+    body["title"] = input.title;
+  }
+  if (input.directory) {
+    body["location"] = { directory: input.directory };
+  }
+  const raw = (await requestJson(baseUrl, password, "POST", "/api/session", body, timeoutMs)) as {
+    data: SessionInfo;
+  };
+  return raw.data;
+}
+
+/**
+ * `POST /api/session/:id/prompt` — admit one input, schedule agent-loop
+ * execution. T-0003 consumes this for chat turns.
+ */
+export async function promptSession(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  input: { text: string },
+  timeoutMs = 15000,
+): Promise<unknown> {
+  return requestJson(baseUrl, password, "POST", `/api/session/${encodeURIComponent(sessionId)}/prompt`, {
+    text: input.text,
+  }, timeoutMs);
+}

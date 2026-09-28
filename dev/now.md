@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT
+CONSISTENT (T-0001 COMPLETE + committed 3dd9ba7; T-0002 IN_PROGRESS in task + roadmap + now; policy ask/ask; worktree has uncommitted now.md/roadmap sync)
 
 ## Current Milestone
 
@@ -17,11 +17,11 @@ M1 — OCT text-only MVP (bridge opencode v2 into Copilot Chat as provider `oct`
 
 ## Current Task
 
-T-0002 — Managed opencode server lifecycle (`dev/tasks/T-0002-managed-server.md`).
+T-0003 — OCT chat provider with 1:1 session reuse (`dev/tasks/T-0003-chat-provider-sessions.md`).
 
 ## Current Step
 
-T-0001 complete and verified; start T-0002 server manager (resolve mode, spawn, health-check, stop).
+T-0002 complete and verified; start T-0003 provider (models, messages, sessions, streaming, registration).
 
 ## Objective
 
@@ -29,15 +29,15 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0001 complete: extension shell + enable/disable/status verified in Extension Development Host (Windows `shell:true` fix applied).
+- T-0002 complete: managed `opencode serve` spawn/health/stop verified in Extension Development Host (managed-password 401 fix + failure-state preservation applied).
 
 ## Last State Transaction
 
-TASK_COMPLETE_T-0001
+TASK_COMPLETE_T-0002
 
 ## Next Action
 
-Implement T-0002 managed server lifecycle, then verify with `npx tsc --noEmit` + manual status check.
+Implement T-0003 chat provider, then verify with `npx tsc --noEmit` + manual picker/chat run.
 
 ## Current Blocker
 
@@ -59,27 +59,27 @@ None.
 
 ## Verification
 
-Status: T-0001_VERIFIED
+Status: T-0002_VERIFIED
 
 Evidence:
 
-- `npx tsc --noEmit -p ./` exit 0 (recompiled after Windows shell fix).
-- Manual Extension Development Host run 2026-09-29: `OCT: Enable/Disable/Status` verified by user.
+- `npx tsc --noEmit -p ./` exit 0.
+- Manual Extension Development Host run 2026-09-29: managed lifecycle steps 1-5 verified by user (spawn, status connected + URL, /api/info, disable cleanup).
 
 ## Commit Policy
 
 Initial: ASK
-Task: AUTO
+Task: ASK
 
-See `dev/commit-policy.md`. Task checkpoints auto-commit only after verification and clean-scope checks.
+See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match file.)
 
 ## Last Commit
 
-`chore: initialize adaptive agent workflow` — initial bootstrap checkpoint (see `git log -1` for hash).
+`3dd9ba7 feat: add OCT extension shell with enable gate` — T-0001 checkpoint (shell, gate, ADR, tasks, state). Worktree clean at commit time.
 
 ## README Status
 
-CURRENT — README describes OCT bridge, M1 state (T-0001 done), setup with F5 + enable flow.
+CURRENT — README describes OCT bridge, M1 state (T-0002 done), setup with F5 + enable flow.
 
 ## Important Context
 
@@ -92,8 +92,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0001 completed and verified; T-0002 queued.
+T-0002 completed and verified; T-0003 queued.
 
 ## Resume Instruction
 
-Read this file first. Active task is T-0002; implement the server manager, verify compile + manual status, then proceed to T-0003.
+Read this file first. Active task is T-0003; implement the chat provider, verify compile + manual picker/chat, then close M1.

@@ -1,7 +1,15 @@
 import * as vscode from "vscode";
 import { checkOpencodeBinary } from "./binary";
-import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, setEnabled } from "./config";
+import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
+import { OctServerManager } from "./server/manager";
+
+let serverManager: OctServerManager | undefined;
+
+function workspaceCwd(): string {
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  return folder ?? process.cwd();
+}
 
 async function promptReload(reason: string): Promise<void> {
   const action = await vscode.window.showInformationMessage(reason, "Reload Window");
@@ -36,24 +44,37 @@ async function disableCommand(): Promise<void> {
     vscode.window.showInformationMessage(`${OCT_DISPLAY_NAME} is already disabled.`);
     return;
   }
-  // T-0002 will stop the managed server here before clearing the flag.
+  if (serverManager) {
+    await serverManager.stop();
+    serverManager = undefined;
+    logLine("Managed server stopped.");
+  }
   await setEnabled(false);
-  logLine("Disabled. Managed server stop will be wired in T-0002.");
   await promptReload(`${OCT_DISPLAY_NAME} disabled. Reload the window to unload the provider.`);
 }
 
 async function statusCommand(): Promise<void> {
   const settings = readSettings();
   const check = await checkOpencodeBinary(settings.opencodeBinary);
+  const server = serverManager?.getState();
+  const configuredUrl = settings.opencodeUrl ? settings.opencodeUrl : null;
   const lines = [
     `${OCT_DISPLAY_NAME} status`,
     `enabled: ${String(settings.enabled)}`,
     `binary: ${settings.opencodeBinary} (${check.ok ? `v${check.version}` : "not usable"})`,
-    `server: ${settings.opencodeUrl || "managed (T-0002 wires spawn/health)"}`,
+    `server: ${server?.url ?? configuredUrl ?? "(not started)"}`,
+    `server mode: ${server?.mode ?? (configuredUrl ? "external" : "managed")}`,
+    `server status: ${server?.status ?? "disconnected"}`,
     `vendor: ${OCT_VENDOR}`,
   ];
+  if (server?.lastError) {
+    lines.push(`server error: ${server.lastError}`);
+  }
   if (!check.ok) {
     lines.push(`binary problem: ${check.message}`);
+  }
+  if (settings.enabled && !serverManager) {
+    lines.push("hint: enabled but the server was never started in this window — reload the window (the Enable command asks for this). ");
   }
   getOutputChannel().show(true);
   for (const line of lines) {
@@ -68,7 +89,7 @@ async function refreshModelsCommand(): Promise<void> {
   vscode.window.showInformationMessage("OCT: model refresh will be available once the chat provider lands (T-0003).");
 }
 
-/** Thin wiring only; server + provider land in T-0002/T-0003. */
+/** Wiring: gate + server lifecycle; provider registers in T-0003. */
 export function activate(context: vscode.ExtensionContext): void {
   const settings = readSettings();
   logLine(`Activating (enabled=${String(settings.enabled)}).`);
@@ -86,12 +107,33 @@ export function activate(context: vscode.ExtensionContext): void {
     return;
   }
 
-  // T-0002: start managed/external server here.
-  // T-0003: register vscode.lm.registerLanguageModelChatProvider(OCT_VENDOR, provider) here.
-  logLine("OCT is enabled. Server + provider wiring lands in T-0002/T-0003.");
+  serverManager = new OctServerManager();
+  const manager = serverManager;
+  context.subscriptions.push({ dispose: () => void manager.stop() });
+  void manager
+    .start({
+      binary: settings.opencodeBinary,
+      externalUrl: settings.opencodeUrl,
+      password: resolveServerPassword(settings),
+      cwd: workspaceCwd(),
+    })
+    .then((state) => {
+      if (state.status === "connected") {
+        // T-0003: register vscode.lm.registerLanguageModelChatProvider(OCT_VENDOR, provider) here.
+        logLine(`Server ready at ${state.url}. Provider wiring lands in T-0003.`);
+      } else {
+        logLine(`Server not ready: ${state.lastError ?? "unknown error"}. Run 'OCT: Show Status'.`);
+        vscode.window.showWarningMessage(`OCT: server not ready (${state.lastError ?? "unknown error"}).`);
+      }
+    }, (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      logLine(`Server start failed unexpectedly: ${message}`);
+      vscode.window.showWarningMessage(`OCT: server start failed (${message}).`);
+    });
 }
 
 export function deactivate(): void {
-  // T-0002: stop owned server here.
+  void serverManager?.stop();
+  serverManager = undefined;
   disposeOutputChannel();
 }

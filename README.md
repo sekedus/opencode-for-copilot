@@ -1,47 +1,45 @@
 # opencode-for-copilot
 
-Project under definition — product discovery is pending.
+VS Code extension bridging a local opencode terminal v2 server into native VS Code Copilot Chat as provider **OCT**.
 
-This repository has the Adaptive Agent Workflow installed to support
-recovery-first, bounded AI-assisted development.
+Opencode runs as a background local engine; Copilot Chat stays the GUI; this extension maps picker models, conversations, and streaming between them.
+
+## Problem solved
+
+- `opencode-llm-proxy` (v1) creates 1 opencode session per Copilot request, spraying sessions in long conversations. This bridge reuses 1 opencode session per Copilot conversation.
+- Direct Zen/Go extensions bypass a local engine. This bridge targets `opencode serve` on loopback.
+- OpenChamber proves managed-server lifecycle but ships its own webview. This bridge plugs into the Copilot model picker instead.
 
 ## Current state
 
-- Workflow phase: `DISCOVERY_PENDING`
-- Current task: none
-- Roadmap tasks: none
-- No product scope has been defined yet. `T-0001` will be created only
-  after the first real project objective is known.
-
-## Workflow entry points
-
-- `AGENTS.md` — project operating rules and intent router.
-- `dev/now.md` — current-state checkpoint; read this first when resuming.
-- `dev/roadmap.md` — milestones and task direction.
-- `dev/project.md` — project purpose and scope (pending discovery).
-- `CONTEXT.md` — durable domain vocabulary (populated during discovery).
-- `docs/workflow/adaptive-agent-workflow.md` — full workflow specification.
-- `wiki/` — usage, recovery, quality-gate, and maintenance guide.
+- Milestone M1 (text-only MVP): `T-0001` shell + gate verified; `T-0002` server manager active; `T-0003` chat provider planned.
+- Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only.
+- Disabled by default; explicit `OCT: Enable` + reload required (background RAM cost).
 
 ## Setup
 
-No product runtime, dependencies, or build steps exist yet.
+Prerequisites:
 
-Once discovery defines the project objective, this README will be updated
-with purpose, scope, prerequisites, and run instructions.
+- VS Code 1.125+
+- Node.js 20+
+- [OpenCode Terminal v2](https://opencode.ai/v2/)
 
-## Working with the agent
+Run:
 
-A normal request is enough, for example:
-
-```text
-I want to build ...
+```bash
+npm install
+npx tsc --noEmit -p ./
 ```
 
-```text
-continue
-```
+Press `F5` for the Extension Development Host, then run `OCT: Enable Opencode Engine` from the command palette, reload, pick an `OCT` model in Copilot Chat.
 
-No `MODE:` labels are required. Bootstrap does not create product tasks.
-See `dev/commit-policy.md` for the `initial` / `task` commit checkpoints
-(default: `ask` for both).
+Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`).
+
+## Workflow entry points
+
+- `AGENTS.md` — project operating rules.
+- `dev/now.md` — current-state checkpoint; read first when resuming.
+- `dev/roadmap.md` — milestones and task direction.
+- `dev/tasks/T-0002-managed-server.md` — active task.
+- `docs/adr/0001-oct-bridge-architecture.md` — architecture decision.
+- `CONTEXT.md` — domain vocabulary (`OCT`, engine, bridge, session sprawl).

@@ -1,0 +1,11 @@
+# VS Code ignores dotfiles and dev-only files in the packaged VSIX.
+.vscode/**
+.git/**
+dev/**
+docs/**
+wiki/**
+AGENTS.md
+CONTEXT.md
+out/**/*.map
+src/**
+tsconfig.json

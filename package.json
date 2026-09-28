@@ -1,0 +1,97 @@
+{
+  "name": "oct-copilot-bridge",
+  "displayName": "OCT: Opencode Engine for Copilot Chat",
+  "description": "Bridge a local opencode v2 server into VS Code Copilot Chat as provider OCT. Opt-in; 1 conversation = 1 opencode session; text-only MVP.",
+  "version": "0.1.0",
+  "publisher": "oct",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.125.0"
+  },
+  "categories": [
+    "AI",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "opencode",
+    "copilot",
+    "copilot-chat",
+    "language-model",
+    "local-server"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sekedus/opencode-for-copilot.git"
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onLanguageModelChatProvider:oct"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "oct.enable",
+        "title": "OCT: Enable Opencode Engine"
+      },
+      {
+        "command": "oct.disable",
+        "title": "OCT: Disable Opencode Engine"
+      },
+      {
+        "command": "oct.status",
+        "title": "OCT: Show Status"
+      },
+      {
+        "command": "oct.refreshModels",
+        "title": "OCT: Refresh Models"
+      }
+    ],
+    "configuration": {
+      "title": "OCT",
+      "properties": {
+        "oct.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Enable the OCT provider (local opencode v2 engine in Copilot Chat). Runs `opencode serve` in the background. Requires a window reload after changing."
+        },
+        "oct.opencodeUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional external opencode server URL (e.g. `http://127.0.0.1:4096`). Empty = the extension spawns and manages its own `opencode serve`. Requires a window reload after changing."
+        },
+        "oct.opencodeBinary": {
+          "type": "string",
+          "default": "opencode",
+          "markdownDescription": "Path or command name of the opencode v2 binary used for `--version` checks and managed `serve`. Requires a window reload after changing."
+        },
+        "oct.opencodePassword": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional password for the opencode server (sent as HTTP Basic `opencode:<password>`). Empty = no auth header. Prefer the `OPENCODE_SERVER_PASSWORD` environment variable; this setting is a fallback."
+        }
+      }
+    },
+    "languageModelChatProviders": [
+      {
+        "vendor": "oct",
+        "displayName": "OCT",
+        "modelConfiguration": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "check": "tsc --noEmit -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.125.0",
+    "typescript": "^5.5.0"
+  }
+}

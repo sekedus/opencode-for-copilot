@@ -5,15 +5,17 @@
 
 ## Current Milestone
 
-None yet.
+M1 — OCT text-only MVP (bridge opencode v2 into Copilot Chat as provider `oct`).
 
 ## Tasks
 
-No product tasks have been created yet.
+- `T-0001` — Extension shell + activation gate — COMPLETE (enable/disable/status verified 2026-09-29).
+- `T-0002` — Managed opencode server lifecycle — PLANNED.
+- `T-0003` — OCT chat provider with 1:1 session reuse (text-only) — PLANNED.
 
 ## Future Milestones
 
-None defined.
+- M2 — Tool-call bridge, session title/sync, tests, VSIX packaging.
 
 ## Roadmap Rules
 

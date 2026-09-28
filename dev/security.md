@@ -17,19 +17,19 @@ Mark only what applies:
 - [ ] File upload / file processing
 - [ ] User-generated content / rich text / HTML
 - [ ] Sensitive or regulated data
-- [ ] Secrets / API keys
+- [x] Secrets / API keys (opencode server password; engine's own provider keys stay in engine)
 - [ ] Database exposed to untrusted input
-- [ ] Server-side network access / SSRF-sensitive features
+- [x] Server-side network access / SSRF-sensitive features (explicit `oct.opencodeUrl` override only)
 - [ ] Cloud infrastructure
 - [ ] Containers
 - [ ] Kubernetes
 - [ ] CI/CD or software supply chain
 - [ ] Mobile application
-- [ ] Desktop / endpoint application
+- [x] Desktop / endpoint application (VS Code extension host)
 - [ ] Network infrastructure
-- [ ] LLM / AI application
+- [x] LLM / AI application (chat bridge; text-only MVP, no tool execution in bridge)
 - [ ] RAG / vector database
-- [ ] MCP / agent tooling
+- [ ] MCP / agent tooling (deferred: tool-call passthrough is post-MVP)
 - [ ] Cryptography / key management
 - [ ] Other: ...
 
@@ -37,15 +37,15 @@ Mark only what applies:
 
 Describe the most important trust boundaries:
 
-- Untrusted users:
-- Public endpoints:
-- Authentication boundary:
-- Authorization boundary:
-- Sensitive data:
-- External services:
-- Files / parsing:
-- Network egress:
-- Deployment/infrastructure:
+- Untrusted users: local VS Code user only (no multi-user; extension host trusts workspace content as usual).
+- Public endpoints: none. Bridge binds engine to loopback `127.0.0.1` by default; no inbound ports opened by the extension itself.
+- Authentication boundary: opencode server password (`OPENCODE_SERVER_PASSWORD` / Basic `opencode:<password>`); external URL override is explicit opt-in.
+- Authorization boundary: session IDs are per-conversation secrets in memory; never expose across conversations.
+- Sensitive data: chat text, workspace paths, server password. Never log password/headers; redact in diagnostics.
+- External services: the engine's own model providers (unchanged by bridge); bridge egress is only to the configured opencode URL.
+- Files / parsing: SSE + JSON from loopback engine; workspace folder path validated as absolute open-folder path.
+- Network egress: loopback to engine; engine's own upstream calls out of scope.
+- Deployment/infrastructure: local VSIX; no cloud, no CI secrets in MVP.
 
 ## 3. Security Skill Routing
 

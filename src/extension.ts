@@ -2,9 +2,11 @@ import * as vscode from "vscode";
 import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
+import { OctChatProvider } from "./provider/octProvider";
 import { OctServerManager } from "./server/manager";
 
 let serverManager: OctServerManager | undefined;
+let chatProvider: OctChatProvider | undefined;
 
 function workspaceCwd(): string {
   const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -84,12 +86,17 @@ async function statusCommand(): Promise<void> {
 }
 
 async function refreshModelsCommand(): Promise<void> {
-  // T-0003 wires this to the provider's model-list refresh.
-  logLine("Refresh models requested (provider wiring lands in T-0003).");
-  vscode.window.showInformationMessage("OCT: model refresh will be available once the chat provider lands (T-0003).");
+  if (!chatProvider) {
+    logLine("Refresh models requested but the provider is not registered (OCT disabled or server not ready).");
+    vscode.window.showInformationMessage("OCT: provider is not active. Enable OCT and reload first.");
+    return;
+  }
+  chatProvider.refreshModels();
+  logLine("Model refresh requested.");
+  vscode.window.showInformationMessage("OCT: refreshing models from the engine.");
 }
 
-/** Wiring: gate + server lifecycle; provider registers in T-0003. */
+/** Wiring: gate + server lifecycle + chat provider registration. */
 export function activate(context: vscode.ExtensionContext): void {
   const settings = readSettings();
   logLine(`Activating (enabled=${String(settings.enabled)}).`);
@@ -118,9 +125,19 @@ export function activate(context: vscode.ExtensionContext): void {
       cwd: workspaceCwd(),
     })
     .then((state) => {
-      if (state.status === "connected") {
-        // T-0003: register vscode.lm.registerLanguageModelChatProvider(OCT_VENDOR, provider) here.
-        logLine(`Server ready at ${state.url}. Provider wiring lands in T-0003.`);
+      if (state.status === "connected" && state.url) {
+        const url = state.url;
+        chatProvider = new OctChatProvider({
+          baseUrl: url,
+          password: manager.getPassword(),
+          directory: workspaceCwd(),
+        });
+        const provider = chatProvider;
+        context.subscriptions.push(
+          vscode.lm.registerLanguageModelChatProvider(OCT_VENDOR, provider),
+          { dispose: () => provider.dispose() },
+        );
+        logLine(`Server ready at ${url}. OCT provider registered.`);
       } else {
         logLine(`Server not ready: ${state.lastError ?? "unknown error"}. Run 'OCT: Show Status'.`);
         vscode.window.showWarningMessage(`OCT: server not ready (${state.lastError ?? "unknown error"}).`);
@@ -135,5 +152,7 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {
   void serverManager?.stop();
   serverManager = undefined;
+  chatProvider?.dispose();
+  chatProvider = undefined;
   disposeOutputChannel();
 }

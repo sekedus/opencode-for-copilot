@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001 COMPLETE + committed 3dd9ba7; T-0002 IN_PROGRESS in task + roadmap + now; policy ask/ask; worktree has uncommitted now.md/roadmap sync)
+CONSISTENT (T-0001 + T-0002 + T-0003 COMPLETE; T-0002 committed 8ad8e2c; T-0003 verified, uncommitted; roadmap + task agree; M1 complete pending commit)
 
 ## Current Milestone
 
@@ -17,11 +17,11 @@ M1 — OCT text-only MVP (bridge opencode v2 into Copilot Chat as provider `oct`
 
 ## Current Task
 
-T-0003 — OCT chat provider with 1:1 session reuse (`dev/tasks/T-0003-chat-provider-sessions.md`).
+None — M1 complete (T-0001 + T-0002 + T-0003 all COMPLETE). Next milestone M2 unscoped.
 
 ## Current Step
 
-T-0002 complete and verified; start T-0003 provider (models, messages, sessions, streaming, registration).
+T-0003 complete and verified; offer task commit, then close M1.
 
 ## Objective
 
@@ -30,14 +30,15 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 ## Last Completed
 
 - T-0002 complete: managed `opencode serve` spawn/health/stop verified in Extension Development Host (managed-password 401 fix + failure-state preservation applied).
+- T-0003 complete: OCT provider verified in Extension Development Host — models in Manage Models + picker (after `toolCalling:true`/`isUserSelectable:true` fix), session reuse across turns.
 
 ## Last State Transaction
 
-TASK_COMPLETE_T-0002
+TASK_COMPLETE_T-0003
 
 ## Next Action
 
-Implement T-0003 chat provider, then verify with `npx tsc --noEmit` + manual picker/chat run.
+Offer T-0003 task commit (policy ask), then close M1.
 
 ## Current Blocker
 
@@ -59,12 +60,13 @@ None.
 
 ## Verification
 
-Status: T-0002_VERIFIED
+Status: T-0003_VERIFIED
 
 Evidence:
 
-- `npx tsc --noEmit -p ./` exit 0.
-- Manual Extension Development Host run 2026-09-29: managed lifecycle steps 1-5 verified by user (spawn, status connected + URL, /api/info, disable cleanup).
+- `npx tsc --noEmit -p ./` exit 0 (2026-09-29); `npm run compile` emit ok (`out/provider/`).
+- Model mapping smoke-tested via node (`p/x` picker id, limits).
+- Manual Extension Development Host run 2026-09-29, user-verified: OCT models in Manage Models + picker (pinned models show after `toolCalling:true`/`isUserSelectable:true` fix); session reuse across turns confirmed.
 
 ## Commit Policy
 
@@ -75,11 +77,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`3dd9ba7 feat: add OCT extension shell with enable gate` — T-0001 checkpoint (shell, gate, ADR, tasks, state). Worktree clean at commit time.
+`8ad8e2c feat: manage opencode serve lifecycle` — T-0002 checkpoint (manager, client, wiring, state). Worktree clean at commit time.
 
 ## README Status
 
-CURRENT — README describes OCT bridge, M1 state (T-0002 done), setup with F5 + enable flow.
+CURRENT — README describes M1 complete (T-0001 + T-0002 + T-0003), picker usage + session-reuse guarantee.
 
 ## Important Context
 
@@ -92,8 +94,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0002 completed and verified; T-0003 queued.
+T-0003 completed and verified (picker + session reuse); state synced, README update + commit pending.
 
 ## Resume Instruction
 
-Read this file first. Active task is T-0003; implement the chat provider, verify compile + manual picker/chat, then close M1.
+Read this file first. M1 is complete; next is README update + T-0003 commit offer (policy ask).

@@ -12,9 +12,10 @@ Opencode runs as a background local engine; Copilot Chat stays the GUI; this ext
 
 ## Current state
 
-- Milestone M1 (text-only MVP): `T-0001` shell + gate verified; `T-0002` server manager verified; `T-0003` chat provider active.
+- Milestone M1 (text-only MVP) COMPLETE: `T-0001` shell + gate, `T-0002` server manager, `T-0003` chat provider with 1 conversation = 1 session reuse — all verified 2026-09-29.
 - Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only.
 - Disabled by default; explicit `OCT: Enable` + reload required (background RAM cost).
+- Pick an `OCT` model in the Copilot model picker; multi-turn conversations reuse one opencode session (text-only; tool definitions get a notice, no execution).
 
 ## Setup
 
@@ -40,6 +41,6 @@ Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `
 - `AGENTS.md` — project operating rules.
 - `dev/now.md` — current-state checkpoint; read first when resuming.
 - `dev/roadmap.md` — milestones and task direction.
-- `dev/tasks/T-0003-chat-provider-sessions.md` — active task.
+- `dev/tasks/T-0003-chat-provider-sessions.md` — completed task (provider + session reuse).
 - `docs/adr/0001-oct-bridge-architecture.md` — architecture decision.
 - `CONTEXT.md` — domain vocabulary (`OCT`, engine, bridge, session sprawl).

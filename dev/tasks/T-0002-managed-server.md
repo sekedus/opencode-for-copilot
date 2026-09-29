@@ -96,7 +96,7 @@ feat: manage opencode serve lifecycle
 Commit status:
 
 ```text
-UNCOMMITTED (commit after state sync; policy ask)
+COMMITTED (8ad8e2c; see dev/now.md Last Commit)
 ```
 
 ## Handoff Notes

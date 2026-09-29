@@ -18,8 +18,22 @@ function authHeader(password: string): Record<string, string> {
   return { Authorization: `Basic ${Buffer.from(`opencode:${password}`, "utf8").toString("base64")}` };
 }
 
+/**
+ * Auth headers for non-JSON requests (e.g. the SSE event stream).
+ * Exported so streaming can reuse the exact credential scheme.
+ * Never log these values.
+ */
+export function octAuthHeaders(password: string): Record<string, string> {
+  return authHeader(password);
+}
+
 function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+/** Join a base URL and path (exported for the SSE event stream). */
+export function octJoinUrl(baseUrl: string, path: string): string {
+  return joinUrl(baseUrl, path);
 }
 
 /**
@@ -72,6 +86,10 @@ export interface ModelInfo {
   providerID: string;
   family?: string;
   name?: string;
+  limit?: { context: number; input?: number; output: number };
+  capabilities?: { tools: boolean; input: string[]; output: string[] };
+  status?: string;
+  enabled?: boolean;
 }
 
 export interface ModelList {
@@ -104,12 +122,15 @@ export interface SessionInfo {
 export async function createSession(
   baseUrl: string,
   password: string,
-  input: { title?: string; directory?: string },
+  input: { title?: string; directory?: string; model?: { id: string; providerID: string } },
   timeoutMs = 15000,
 ): Promise<SessionInfo> {
   const body: Record<string, unknown> = {};
   if (input.title) {
     body["title"] = input.title;
+  }
+  if (input.model) {
+    body["model"] = { id: input.model.id, providerID: input.model.providerID };
   }
   if (input.directory) {
     body["location"] = { directory: input.directory };
@@ -118,6 +139,59 @@ export async function createSession(
     data: SessionInfo;
   };
   return raw.data;
+}
+
+/** `POST /api/session/:id/model` — pin the session to the picker model. */
+export async function switchSessionModel(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  model: { id: string; providerID: string },
+  timeoutMs = 15000,
+): Promise<void> {
+  await requestJson(baseUrl, password, "POST", `/api/session/${encodeURIComponent(sessionId)}/model`, {
+    model: { id: model.id, providerID: model.providerID },
+  }, timeoutMs);
+}
+
+/** `POST /api/session/:id/interrupt` — best-effort cancel of a running turn. */
+export async function interruptSession(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  timeoutMs = 5000,
+): Promise<void> {
+  try {
+    await requestJson(baseUrl, password, "POST", `/api/session/${encodeURIComponent(sessionId)}/interrupt`, {}, timeoutMs);
+  } catch {
+    // Best effort: the turn may already be idle.
+  }
+}
+
+export interface SessionMessageItem {
+  id: string;
+  type: string;
+  content?: Array<{ type: string; text?: string }>;
+  [key: string]: unknown;
+}
+
+/** `GET /api/session/:id/message` — newest-first projected messages (fallback path). */
+export async function listSessionMessages(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  limit = 20,
+  timeoutMs = 15000,
+): Promise<SessionMessageItem[]> {
+  const raw = (await requestJson(
+    baseUrl,
+    password,
+    "GET",
+    `/api/session/${encodeURIComponent(sessionId)}/message?limit=${limit}&order=desc`,
+    undefined,
+    timeoutMs,
+  )) as { data: SessionMessageItem[] };
+  return raw.data ?? [];
 }
 
 /**

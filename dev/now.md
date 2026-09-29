@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001 + T-0002 + T-0003 COMPLETE; T-0002 committed 8ad8e2c; T-0003 verified, uncommitted; roadmap + task agree; M1 complete pending commit)
+CONSISTENT (T-0001 + T-0002 + T-0003 COMPLETE + committed d9ce1b4; roadmap + task agree; M1 complete; worktree has uncommitted checkpoint bookkeeping only)
 
 ## Current Milestone
 
@@ -21,7 +21,7 @@ None — M1 complete (T-0001 + T-0002 + T-0003 all COMPLETE). Next milestone M2 
 
 ## Current Step
 
-T-0003 complete and verified; offer task commit, then close M1.
+T-0003 committed (d9ce1b4); M1 complete. Await next objective (M2 unscoped).
 
 ## Objective
 
@@ -34,11 +34,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-TASK_COMPLETE_T-0003
+COMMIT_T-0003
 
 ## Next Action
 
-Offer T-0003 task commit (policy ask), then close M1.
+None — M1 complete. Await next objective (M2: tool bridge, tests, VSIX).
 
 ## Current Blocker
 
@@ -77,7 +77,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`8ad8e2c feat: manage opencode serve lifecycle` — T-0002 checkpoint (manager, client, wiring, state). Worktree clean at commit time.
+`d9ce1b4 feat: add OCT chat provider with session reuse` — T-0003 checkpoint (provider, models, sessions, streaming, wiring, state). Worktree clean at commit time.
 
 ## README Status
 
@@ -94,8 +94,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0003 completed and verified (picker + session reuse); state synced, README update + commit pending.
+T-0003 completed, verified, and committed (d9ce1b4); M1 complete.
 
 ## Resume Instruction
 
-Read this file first. M1 is complete; next is README update + T-0003 commit offer (policy ask).
+Read this file first. M1 is complete; await next objective (M2 unscoped).

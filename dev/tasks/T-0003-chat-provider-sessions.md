@@ -101,7 +101,7 @@ feat: add OCT chat provider with session reuse
 Commit status:
 
 ```text
-UNCOMMITTED (commit after state sync; policy ask)
+COMMITTED (d9ce1b4; see dev/now.md Last Commit)
 ```
 
 ## Handoff Notes

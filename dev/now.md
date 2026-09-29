@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0004 COMPLETE + committed d7f9b28; roadmap + tasks agree; worktree clean)
+CONSISTENT (T-0001..T-0005 COMPLETE; roadmap + tasks agree; worktree has uncommitted T-0005 bookkeeping only)
 
 ## Current Milestone
 
@@ -17,17 +17,19 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 
 ## Current Task
 
-None — T-0004 COMPLETE. Next: T-0005 (approvals-only + engine-visible) unscoped.
+None — T-0005 COMPLETE (GO for plugin-based Copilot-tool build). Next: full tool-bridge build unscoped.
 
 ## Current Step
 
-T-0004 probes complete: no injection path (fields silently dropped); tool events + permission round-trip captured; decision recorded. Next: scope T-0005 or commit T-0004.
+T-0005 probes complete: block-and-resume + interrupt + context-filter proven; GO decision recorded. Next: scope build or commit T-0005.
 
 ## Objective
 
 Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Copilot Chat as provider "OCT", with opt-in gate, managed server, and 1 conversation = 1 session reuse (text-only MVP).
 
 ## Last Completed
+
+- T-0005 complete (GO): plugin echo-tool block-and-resume proven; interrupt → aborted failure; context-filter works for direct tools; permission-deny works for catalog tools.
 
 - T-0004 complete: bidirectional tool execution NO-GO (prompt API drops tool fields); engine tool events + permission.asked/reply verified live; T-0005 recommendation approvals-only + engine-visible.
 
@@ -36,11 +38,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-COMMIT_T-0004
+TASK_COMPLETED_T-0005
 
 ## Next Action
 
-Scope T-0005 (approvals-only + engine-visible slices).
+Scope full Copilot-tool build (plugin + executor callback + approval UI) or commit T-0005 checkpoint (policy: ask).
 
 ## Current Blocker
 
@@ -52,6 +54,7 @@ None.
 - `dev/tasks/T-0002-managed-server.md`
 - `dev/tasks/T-0003-chat-provider-sessions.md`
 - `dev/tasks/T-0004-tool-bridge-spike.md`
+- `dev/tasks/T-0005-plugin-echo-tool-spike.md`
 - `docs/adr/0001-oct-bridge-architecture.md`
 - `dev/project.md`
 - `dev/constraints.md`
@@ -63,7 +66,12 @@ None.
 
 ## Verification
 
-Status: T-0004_VERIFIED
+Status: T-0005_VERIFIED
+
+Evidence:
+
+- Scratch `opencode serve` v2.0.19 probes 2026-09-29 (see T-0005 Probe Log).
+- `npx tsc --noEmit -p ./` exit 0; no `src/` modifications.
 
 Evidence:
 
@@ -85,7 +93,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`d7f9b28 docs: add T-0004 tool-bridge spike scope` — T-0004 checkpoint (spike scope, probe evidence, decision). Worktree clean at commit time.
+`87b3dda chore: record T-0004 commit checkpoint` — bookkeeping on top of `d7f9b28 docs: add T-0004 tool-bridge spike scope`. Worktree has uncommitted T-0005 bookkeeping.
 
 ## README Status
 
@@ -93,7 +101,7 @@ CURRENT — README describes M1 complete (T-0001 + T-0002 + T-0003), picker usag
 
 ## Important Context
 
-Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map, text-only MVP. References in %TEMP%: opencode v2 (8c1ce95), openchamber v2 (098434d), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4). Local opencode v2.0.18 available.
+Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map, text-only MVP. References in %TEMP% (refreshed 2026-09-29): opencode v2 (293d60a), openchamber v2 (566ba61), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4). Local opencode v2.0.18 available.
 
 ## Do Not Change
 
@@ -102,8 +110,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0004 completed with evidence: no injection path; tool events + permission round-trip verified; T-0005 recommendation recorded.
+T-0005 completed with evidence: GO for plugin-based build; all four probes verified live.
 
 ## Resume Instruction
 
-Read this file first. T-0004 is COMPLETE; T-0005 (approvals-only + engine-visible) is the recommended next task.
+Read this file first. T-0005 is COMPLETE (GO); the full tool-bridge build is the recommended next task.

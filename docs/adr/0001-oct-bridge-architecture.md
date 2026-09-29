@@ -7,8 +7,8 @@
 
 The user wants opencode terminal v2 as a local engine behind native VS Code Copilot Chat. Four references were surveyed (in `%TEMP%`):
 
-- `opencode v2 (8c1ce95)`: REST + SSE under `/api/*` (`session.create/prompt`, `model.list`, `event.subscribe`), started via `opencode serve`, health via `GET /api/info`. No `/chat/completions`.
-- `openchamber v2 (098434d)`: managed-or-external `opencode serve` lifecycle (`OpenCodeManager`, stdout `server listening on` parse, `waitForApiUrl` on `/api/info`), but ships its own webview, not Copilot Chat.
+- `opencode v2 (293d60a)`: REST + SSE under `/api/*` (`session.create/prompt`, `model.list`, `event.subscribe`), started via `opencode serve`, health via `GET /api/info`. No `/chat/completions`.
+- `openchamber v2 (566ba61)`: managed-or-external `opencode serve` lifecycle (`OpenCodeManager`, stdout `server listening on` parse, `waitForApiUrl` on `/api/info`), but ships its own webview, not Copilot Chat.
 - `opencode-copilot-chat (191f6df)`: plugs Zen/Go into the Copilot picker via `languageModelChatProviders` vendor + `vscode.lm.registerLanguageModelChatProvider` (`provideLanguageModelChatInformation/Response/TokenCount`), `engines.vscode ^1.125.0`. No local engine.
 - `opencode-llm-proxy v1 (8c262c4)`: stateless proxy creating + deleting one opencode session per request — the session-sprawl failure mode to avoid.
 

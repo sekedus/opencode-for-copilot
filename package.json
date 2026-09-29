@@ -1,5 +1,5 @@
 {
-  "name": "oct-copilot-bridge",
+  "name": "opencode-for-copilot",
   "displayName": "OCT: Opencode Engine for Copilot Chat",
   "description": "Bridge a local opencode v2 server into VS Code Copilot Chat as provider OCT. Opt-in; 1 conversation = 1 opencode session; text-only MVP.",
   "version": "0.1.0",

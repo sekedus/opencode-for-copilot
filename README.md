@@ -44,3 +44,10 @@ Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `
 - `dev/tasks/T-0003-chat-provider-sessions.md` — completed task (provider + session reuse).
 - `docs/adr/0001-oct-bridge-architecture.md` — architecture decision.
 - `CONTEXT.md` — domain vocabulary (`OCT`, engine, bridge, session sprawl).
+
+## Credits
+
+- [OpenCode v2](https://github.com/anomalyco/opencode/tree/v2?tab=readme-ov-file#readme)
+- [OpenChamber](https://github.com/anomalyco/openchamber?tab=readme-ov-file#readme)
+- [OpenCode for GitHub Copilot Chat](https://github.com/ltmoerdani/opencode-copilot-chat?tab=readme-ov-file#readme)
+- [opencode-llm-proxy](https://github.com/KochC/opencode-llm-proxy?tab=readme-ov-file#readme)

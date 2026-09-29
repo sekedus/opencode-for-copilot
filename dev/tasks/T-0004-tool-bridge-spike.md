@@ -154,7 +154,7 @@ docs: add T-0004 tool-bridge spike scope
 Commit status:
 
 ```text
-UNCOMMITTED
+COMMITTED (d7f9b28; see dev/now.md Last Commit)
 ```
 
 ## Handoff Notes

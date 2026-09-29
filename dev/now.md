@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0004 COMPLETE; roadmap + tasks agree; worktree has uncommitted T-0004 bookkeeping only)
+CONSISTENT (T-0001..T-0004 COMPLETE + committed d7f9b28; roadmap + tasks agree; worktree clean)
 
 ## Current Milestone
 
@@ -36,11 +36,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-TASK_COMPLETED_T-0004
+COMMIT_T-0004
 
 ## Next Action
 
-Scope T-0005 (approvals-only + engine-visible slices) or commit T-0004 checkpoint (policy: ask).
+Scope T-0005 (approvals-only + engine-visible slices).
 
 ## Current Blocker
 
@@ -85,7 +85,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`b60aa29 chore: record T-0003 commit checkpoint` — bookkeeping on top of `d9ce1b4 feat: add OCT chat provider with session reuse`. Worktree clean.
+`d7f9b28 docs: add T-0004 tool-bridge spike scope` — T-0004 checkpoint (spike scope, probe evidence, decision). Worktree clean at commit time.
 
 ## README Status
 

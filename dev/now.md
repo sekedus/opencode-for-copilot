@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0005 COMPLETE; roadmap + tasks agree; worktree has uncommitted T-0005 bookkeeping only)
+CONSISTENT (T-0001..T-0005 COMPLETE + committed 5747c30; roadmap + tasks agree; worktree has uncommitted checkpoint bookkeeping only)
 
 ## Current Milestone
 
@@ -38,7 +38,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-TASK_COMPLETED_T-0005
+COMMIT_T-0005
 
 ## Next Action
 
@@ -93,7 +93,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`87b3dda chore: record T-0004 commit checkpoint` — bookkeeping on top of `d7f9b28 docs: add T-0004 tool-bridge spike scope`. Worktree has uncommitted T-0005 bookkeeping.
+`5747c30 docs: add T-0005 plugin echo-tool spike scope` — T-0005 checkpoint (spike scope, probe evidence, GO decision). Worktree has uncommitted checkpoint bookkeeping.
 
 ## README Status
 

@@ -156,7 +156,7 @@ docs: add T-0005 plugin echo-tool spike scope
 Commit status:
 
 ```text
-UNCOMMITTED
+COMMITTED (5747c30; see dev/now.md Last Commit)
 ```
 
 ## Handoff Notes

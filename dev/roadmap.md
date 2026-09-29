@@ -5,13 +5,14 @@
 
 ## Current Milestone
 
-M1 — OCT text-only MVP (bridge opencode v2 into Copilot Chat as provider `oct`).
+M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging.
 
 ## Tasks
 
 - `T-0001` — Extension shell + activation gate — COMPLETE (enable/disable/status verified 2026-09-29).
 - `T-0002` — Managed opencode server lifecycle — COMPLETE (managed spawn/health/stop verified 2026-09-29).
 - `T-0003` — OCT chat provider with 1:1 session reuse (text-only) — COMPLETE (picker lists engine models; session reuse verified 2026-09-29).
+- `T-0004` — Tool-bridge spike (bidirectional feasibility) — COMPLETE (no injection path; recommend approvals-only + engine-visible for T-0005).
 
 ## Future Milestones
 

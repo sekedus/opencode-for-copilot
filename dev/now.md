@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001 + T-0002 + T-0003 COMPLETE + committed d9ce1b4; roadmap + task agree; M1 complete; worktree has uncommitted checkpoint bookkeeping only)
+CONSISTENT (T-0001..T-0004 COMPLETE; roadmap + tasks agree; worktree has uncommitted T-0004 bookkeeping only)
 
 ## Current Milestone
 
-M1 — OCT text-only MVP (bridge opencode v2 into Copilot Chat as provider `oct`).
+M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging.
 
 ## Current Task
 
-None — M1 complete (T-0001 + T-0002 + T-0003 all COMPLETE). Next milestone M2 unscoped.
+None — T-0004 COMPLETE. Next: T-0005 (approvals-only + engine-visible) unscoped.
 
 ## Current Step
 
-T-0003 committed (d9ce1b4); M1 complete. Await next objective (M2 unscoped).
+T-0004 probes complete: no injection path (fields silently dropped); tool events + permission round-trip captured; decision recorded. Next: scope T-0005 or commit T-0004.
 
 ## Objective
 
@@ -29,16 +29,18 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
+- T-0004 complete: bidirectional tool execution NO-GO (prompt API drops tool fields); engine tool events + permission.asked/reply verified live; T-0005 recommendation approvals-only + engine-visible.
+
 - T-0002 complete: managed `opencode serve` spawn/health/stop verified in Extension Development Host (managed-password 401 fix + failure-state preservation applied).
 - T-0003 complete: OCT provider verified in Extension Development Host — models in Manage Models + picker (after `toolCalling:true`/`isUserSelectable:true` fix), session reuse across turns.
 
 ## Last State Transaction
 
-COMMIT_T-0003
+TASK_COMPLETED_T-0004
 
 ## Next Action
 
-None — M1 complete. Await next objective (M2: tool bridge, tests, VSIX).
+Scope T-0005 (approvals-only + engine-visible slices) or commit T-0004 checkpoint (policy: ask).
 
 ## Current Blocker
 
@@ -49,6 +51,7 @@ None.
 - `dev/tasks/T-0001-extension-shell-gate.md`
 - `dev/tasks/T-0002-managed-server.md`
 - `dev/tasks/T-0003-chat-provider-sessions.md`
+- `dev/tasks/T-0004-tool-bridge-spike.md`
 - `docs/adr/0001-oct-bridge-architecture.md`
 - `dev/project.md`
 - `dev/constraints.md`
@@ -60,7 +63,12 @@ None.
 
 ## Verification
 
-Status: T-0003_VERIFIED
+Status: T-0004_VERIFIED
+
+Evidence:
+
+- Scratch `opencode serve` v2.0.18 probes 2026-09-29 (see task Probe Log).
+- `npx tsc --noEmit -p ./` exit 0; no `src/` modifications.
 
 Evidence:
 
@@ -77,7 +85,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`d9ce1b4 feat: add OCT chat provider with session reuse` — T-0003 checkpoint (provider, models, sessions, streaming, wiring, state). Worktree clean at commit time.
+`b60aa29 chore: record T-0003 commit checkpoint` — bookkeeping on top of `d9ce1b4 feat: add OCT chat provider with session reuse`. Worktree clean.
 
 ## README Status
 
@@ -94,8 +102,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0003 completed, verified, and committed (d9ce1b4); M1 complete.
+T-0004 completed with evidence: no injection path; tool events + permission round-trip verified; T-0005 recommendation recorded.
 
 ## Resume Instruction
 
-Read this file first. M1 is complete; await next objective (M2 unscoped).
+Read this file first. T-0004 is COMPLETE; T-0005 (approvals-only + engine-visible) is the recommended next task.

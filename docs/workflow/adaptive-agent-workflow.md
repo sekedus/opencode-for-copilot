@@ -384,7 +384,25 @@ Avoid claims such as "secure" or "fully compatible" unless the evidence supports
 
 ---
 
-## 13. Final Checkpoint
+## 13. Feature and Bug-Fix Records
+
+Active work belongs in `dev/tasks/`. Completed work may produce a historical record when it is useful to preserve project understanding.
+
+### Features
+
+Create `dev/features/YYYYMMDD-<feature-slug>.md` when the change introduces meaningful user-visible capability or an important workflow/integration. Use `.feature-template.md`.
+
+### Bug Fixes
+
+Create `dev/bug-fixes/YYYYMMDD-<bug-slug>.md` when a bug has been investigated, fixed, and verified and the incident is worth preserving for future troubleshooting, reliability, or security work. Use `.bug-fix-template.md`.
+
+**Do not** create records for every trivial change. The record should summarize the durable lesson and link to the task, ADRs, tests, and commit rather than duplicating implementation details.
+
+Feature/bug records are part of the state transaction that closes the work, but they do not replace the task or `now.md`.
+
+---
+
+## 14. Final Checkpoint
 
 Before ending a meaningful session, `dev/now.md` should answer:
 

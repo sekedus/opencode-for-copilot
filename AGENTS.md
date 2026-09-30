@@ -228,6 +228,30 @@ After creating a commit:
 
 State-synchronization edits are mandatory bookkeeping for the current work. They are not unrelated scope expansion.
 
+### Feature and Bug-Fix Records
+
+`dev/tasks/` is for active executable work. `dev/features/` and `dev/bug-fixes/` are historical records created only when their respective work is meaningful enough to preserve.
+
+For a completed feature:
+
+1. verify the task;
+2. determine whether the work is a meaningful user-facing feature;
+3. if yes, create/update `dev/features/YYYYMMDD-<feature-slug>.md` from `.feature-template.md`;
+4. link the task, relevant ADRs, and checkpoint commit;
+5. update `dev/now.md` and roadmap state;
+6. review README impact.
+
+For a resolved bug:
+
+1. verify the fix;
+2. determine whether the bug is meaningful enough to preserve;
+3. if yes, create/update `dev/bug-fixes/YYYYMMDD-<bug-slug>.md` from `.bug-fix-template.md`;
+4. link the task, feature/ADR when applicable, and checkpoint commit;
+5. capture security impact and prevention lessons when relevant;
+6. update `dev/now.md` and state artifacts.
+
+Do not create feature or bug records for every trivial change. Do not use these records as substitutes for active task state.
+
 ---
 
 ## 10. Root README Policy

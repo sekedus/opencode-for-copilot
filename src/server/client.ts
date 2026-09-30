@@ -141,6 +141,24 @@ export async function createSession(
   return raw.data;
 }
 
+/** `GET /api/session/:id` — fetch one session (existence check for reuse). */
+export async function getSession(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  timeoutMs = 15000,
+): Promise<SessionInfo> {
+  const raw = (await requestJson(
+    baseUrl,
+    password,
+    "GET",
+    `/api/session/${encodeURIComponent(sessionId)}`,
+    undefined,
+    timeoutMs,
+  )) as { data: SessionInfo };
+  return raw.data;
+}
+
 /** `POST /api/session/:id/model` — pin the session to the picker model. */
 export async function switchSessionModel(
   baseUrl: string,

@@ -131,6 +131,7 @@ export function activate(context: vscode.ExtensionContext): void {
           baseUrl: url,
           password: manager.getPassword(),
           directory: workspaceCwd(),
+          sessionStore: context.globalState,
         });
         const provider = chatProvider;
         context.subscriptions.push(

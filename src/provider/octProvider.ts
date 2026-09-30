@@ -15,6 +15,8 @@ export interface OctProviderDeps {
   baseUrl: string;
   password: string;
   directory: string;
+  /** Persisted conversation→session map across window reloads. */
+  sessionStore?: vscode.Memento;
 }
 
 const TOOL_NOTICE =
@@ -30,10 +32,12 @@ function estimateTokens(text: string): number {
 export class OctChatProvider implements vscode.LanguageModelChatProvider<OctModel> {
   private readonly changeEmitter = new vscode.EventEmitter<void>();
   readonly onDidChangeLanguageModelChatInformation = this.changeEmitter.event;
-  private readonly sessions = new OctSessionMap();
+  private readonly sessions: OctSessionMap;
   private modelsCache: OctModel[] = [];
 
-  constructor(private readonly deps: OctProviderDeps) {}
+  constructor(private readonly deps: OctProviderDeps) {
+    this.sessions = new OctSessionMap(deps.sessionStore);
+  }
 
   /** Force VS Code to re-query the model list. */
   refreshModels(): void {

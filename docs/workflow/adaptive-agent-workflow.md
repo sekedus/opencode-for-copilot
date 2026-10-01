@@ -1,6 +1,18 @@
 # Adaptive Agent Workflow
 
-**Workflow version: v5**
+**Workflow version: v6**
+
+## Harness Portability
+
+The workflow is project-level and uses the root `AGENTS.md` as its canonical instruction source. Harness-specific instruction files are adapters, not competing workflow definitions.
+
+- OpenCode/OpenChamber: use `AGENTS.md` directly.
+- VS Code Copilot: `AGENTS.md` is the portable source; `.github/copilot-instructions.md` may remain as a thin adapter.
+- Other harnesses: verify their current instruction discovery rules and use a thin adapter only when necessary.
+- `wiki/` is optional human documentation.
+- Personal user instructions are optional and must not be required for project workflow execution.
+
+---
 
 ## 1. Design Goal
 

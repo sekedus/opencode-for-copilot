@@ -1,6 +1,8 @@
-# Project Copilot Instructions
+# Project Copilot Adapter
 
-This repository uses the Adaptive Agent Workflow defined in `AGENTS.md`.
+This file is an optional VS Code Copilot adapter. The portable workflow source of truth is the root `AGENTS.md`.
+
+Do not duplicate, override, or fork the workflow rules here. Read and follow `AGENTS.md` first.
 
 Before working on a task:
 

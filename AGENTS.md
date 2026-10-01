@@ -1,5 +1,14 @@
 # Adaptive Agent Workflow — Project Rules
 
+## 0. Harness Portability
+
+`AGENTS.md` is the canonical project workflow instruction source. The workflow must not depend on VS Code Copilot-specific instruction files.
+
+- Harnesses that support `AGENTS.md` should use this file directly.
+- `.github/copilot-instructions.md` is an optional thin Copilot adapter only. Do not duplicate workflow rules there.
+- If a harness does not support `AGENTS.md`, use its native project-instruction mechanism as an adapter while preserving this file as the canonical project workflow documentation.
+- `wiki/` is human documentation and is not required for runtime workflow execution.
+
 ## 1. Repository Is Durable Project Memory
 
 The repository is the durable project memory. Chat history is temporary.

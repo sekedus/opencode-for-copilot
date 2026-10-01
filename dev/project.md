@@ -30,7 +30,7 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 
 - Language(s): TypeScript (strict)
 - Framework(s): VS Code Extension API (`lm.registerLanguageModelChatProvider`); opencode v2 REST + SSE (`/api/session`, `/api/model`, `/api/event`)
-- Runtime: Node 20+ (extension host); opencode v2.0.x (verified against 2.0.18)
+- Runtime: Node 20+ (extension host); opencode v2.0.x (verified against 2.0.21)
 - Database: none (in-memory conversation-id map + opencode server state)
 - Build tools: TypeScript `tsc`, esbuild (planned), `vsce` packaging
 - Test tools: Vitest or node:test for session-map + message-convert units (planned)

@@ -4,7 +4,7 @@ Use this file for constraints that materially affect technical decisions.
 
 ## Runtime / Platform Baseline
 
-- Runtime: VS Code `^1.125.0` (for `languageModelChatProviders` / `onLanguageModelChatProvider:oct`); Node 20+ extension host; opencode v2.0.x (verified 2.0.18 via `opencode --version`).
+- Runtime: VS Code `^1.125.0` (for `languageModelChatProviders` / `onLanguageModelChatProvider:oct`); Node 20+ extension host; opencode v2.0.x (verified 2.0.21 via `opencode --version`).
 - OS/platform: Windows 10 Pro Build 19045 primary; macOS/Linux best-effort (process spawn + `taskkill` vs `SIGTERM` paths).
 - Browsers: n/a (desktop extension, no web UI).
 - Mobile platforms: n/a.

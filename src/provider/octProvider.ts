@@ -4,7 +4,7 @@ import { logLine } from "../output";
 import { toOctModels, type OctModel } from "./models";
 import { buildPromptText, hasToolParts } from "./messages";
 import { conversationKey, OctSessionMap } from "./sessions";
-import { streamTurn } from "./streaming";
+import { isInstructionBlockedError, streamTurn } from "./streaming";
 
 /**
  * OCT chat provider: exposes engine models in the Copilot picker and serves
@@ -89,23 +89,45 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       messages,
       this.deps.directory,
     );
-    const sessionId = await this.sessions.getOrCreate(
-      key,
-      { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory },
-      { id: model.modelID, providerID: model.providerID, pickerId: model.id },
-      token,
-    );
+    const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory };
+    const modelRef = { id: model.modelID, providerID: model.providerID, pickerId: model.id };
+    const sessionId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token);
     let promptText = buildPromptText(messages);
     if (hasToolParts(messages) || (options.tools?.length ?? 0) > 0) {
       promptText = `${TOOL_NOTICE}\n\n${promptText}`;
       logLine(`Turn on ${sessionId} carries tool definitions; answering text-only.`);
     }
     logLine(`Turn on ${sessionId} (${model.id}, ${promptText.length} chars).`);
-    await streamTurn(
-      { baseUrl: this.deps.baseUrl, password: this.deps.password, sessionId, promptText },
-      progress,
-      token,
-    );
+    const turn = (id: string) =>
+      streamTurn({ baseUrl: this.deps.baseUrl, password: this.deps.password, sessionId: id, promptText }, progress, token);
+    try {
+      await turn(sessionId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isInstructionBlockedError(message)) {
+        throw error;
+      }
+      // The mapped session can never initialize its instruction state, so
+      // retrying the same id would fail forever. Drop the mapping and try
+      // once on a fresh session (heals transient discovery failures).
+      logLine(`Turn on ${sessionId} hit instruction-blocked; dropping the mapping and retrying once on a fresh session.`);
+      this.sessions.forget(key);
+      const freshId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token);
+      logLine(`Turn on ${freshId} (${model.id}, retry after instruction-blocked).`);
+      try {
+        await turn(freshId);
+      } catch (retryError) {
+        const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+        if (isInstructionBlockedError(retryMessage)) {
+          throw new Error(
+            `OCT: engine instruction discovery is unavailable (core/instructions) for '${this.deps.directory}'. ` +
+              `The server could not read the AGENTS.md instruction files — check the directory exists and the files are readable, ` +
+              `then reload the window to restart the managed engine and try again. Engine detail: ${retryMessage}`,
+          );
+        }
+        throw retryError;
+      }
+    }
   }
 
   async provideTokenCount(

@@ -104,6 +104,20 @@ export class OctSessionMap {
     // calls clear) must not wipe reuse across a reload.
   }
 
+  /**
+   * Drop one conversation mapping so the next turn creates a fresh session.
+   * Used when the mapped session is poisoned: some engine failures (e.g.
+   * `Instruction initialization blocked`) are recorded against session state
+   * that can never succeed on retry, so reusing the id would fail forever.
+   */
+  forget(key: string): void {
+    if (this.entries.delete(key)) {
+      this.unverified.delete(key);
+      this.persist();
+      logLine(`Conversation ${key} mapping dropped; the next turn will create a fresh session.`);
+    }
+  }
+
   /** Load persisted entries; every restored key needs a server check on first use. */
   private restore(): void {
     if (!this.store) {

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as fs from "node:fs";
 import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
@@ -10,7 +11,32 @@ let chatProvider: OctChatProvider | undefined;
 
 function workspaceCwd(): string {
   const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  return folder ?? process.cwd();
+  return canonicalDirectory(folder ?? process.cwd());
+}
+
+/**
+ * Canonicalize a workspace directory before handing it to the engine.
+ * The engine compares location paths case-sensitively (the instruction
+ * plugin walks ancestors until string equality with no cycle guard), so a
+ * lowercase drive letter (`c:\...`, as VS Code may report it) recurses
+ * forever at the drive root, marks `core/instructions` unavailable, and
+ * poisons every session with `instruction initialization blocked`. Prefer the
+ * on-disk spelling; fall back to an uppercased drive letter.
+ */
+function canonicalDirectory(dir: string): string {
+  const trimmed = dir.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  try {
+    return fs.realpathSync.native(trimmed);
+  } catch {
+    const drive = trimmed.match(/^([a-z]):/);
+    if (drive?.[1]) {
+      return `${drive[1].toUpperCase()}${trimmed.slice(2)}`;
+    }
+    return trimmed;
+  }
 }
 
 async function promptReload(reason: string): Promise<void> {

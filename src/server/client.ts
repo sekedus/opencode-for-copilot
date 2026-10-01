@@ -49,7 +49,11 @@ export async function requestJson(
   timeoutMs = 15000,
 ): Promise<unknown> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const response = await fetch(joinUrl(baseUrl, path), {
       method,
@@ -62,6 +66,11 @@ export async function requestJson(
       throw new OctHttpError(response.status, text.slice(0, 500), path);
     }
     return text ? (JSON.parse(text) as unknown) : undefined;
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(`opencode request timed out: ${method} ${path} (${timeoutMs}ms)`);
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }

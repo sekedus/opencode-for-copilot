@@ -60,12 +60,32 @@ function errorOf(event: WireEvent): string | undefined {
     return error;
   }
   if (error && typeof error === "object") {
-    const message = (error as Record<string, unknown>)["message"];
+    const record = error as Record<string, unknown>;
+    const message = record["message"];
+    const type = record["type"];
     if (typeof message === "string" && message) {
+      // Keep the engine error type (e.g. `provider.auth`) — it tells the
+      // user whether to sign in, pick another model, or retry. The generic
+      // `unknown` bucket carries no signal, so it is omitted.
+      if (typeof type === "string" && type && type !== "unknown") {
+        return `[${type}] ${message}`;
+      }
       return message;
     }
   }
   return undefined;
+}
+
+/**
+ * True when a turn error means the session's instruction state could never
+ * initialize (`core/instructions` source unavailable: an AGENTS.md file was
+ * unreadable or instruction discovery failed). The engine records no baseline
+ * for such sessions, so every subsequent prompt on the same id fails the same
+ * way — the caller must map the conversation to a fresh session instead of
+ * retrying the poisoned one.
+ */
+export function isInstructionBlockedError(message: string): boolean {
+  return /instruction initialization blocked by unavailable sources/i.test(message);
 }
 
 function isTerminalFor(event: WireEvent, sessionId: string): boolean {
@@ -154,25 +174,43 @@ export async function streamTurn(
   const { baseUrl, password, sessionId, promptText } = deps;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
-  const onCancel = () => controller.abort();
+  // Abort-reason tracking: `controller.signal.aborted` goes true on every
+  // normal turn (we abort the SSE reader once the terminal event arrives),
+  // so it must never be used as evidence of cancellation/timeout. Only the
+  // explicit flags below mean the turn was cancelled or timed out.
+  let cancelRequested = false;
+  let timedOut = false;
+  let admissionFailed = false;
+  const onCancel = () => {
+    cancelRequested = true;
+    controller.abort();
+  };
   if (token.isCancellationRequested) {
     throw new Error("OCT: request cancelled.");
   }
   const cancelSub = token.onCancellationRequested(onCancel);
-  const timer = setTimeout(() => controller.abort(new Error("OCT: turn timed out.")), timeoutMs);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   let streamed = "";
   let sawTerminal = false;
   let turnError: string | undefined;
   try {
     const stream = readSse(octJoinUrl(baseUrl, "/api/event"), octAuthHeaders(password), controller.signal);
     const promptPromise = promptSession(baseUrl, password, sessionId, { text: promptText }).catch((error: unknown) => {
-      // Admission failures surface as the turn error; the stream still drains
-      // briefly so in-flight terminal events are observed.
+      // Admission failures (unknown session, validation, timeout) are
+      // authoritative — no terminal event will follow, so mark the turn and
+      // let the stream loop exit instead of hanging until the turn timeout.
+      admissionFailed = true;
       turnError = error instanceof Error ? error.message : String(error);
     });
     try {
       for await (const event of stream) {
-        if (controller.signal.aborted || token.isCancellationRequested) {
+        if (cancelRequested || timedOut || token.isCancellationRequested) {
+          break;
+        }
+        if (admissionFailed) {
           break;
         }
         if (sessionOf(event) !== sessionId) {
@@ -201,17 +239,28 @@ export async function streamTurn(
         }
       }
     } catch (error) {
-      if (controller.signal.aborted || token.isCancellationRequested) {
-        return;
+      if (cancelRequested || timedOut || token.isCancellationRequested) {
+        if (timedOut) {
+          await interruptSession(baseUrl, password, sessionId);
+          throw new Error("OCT: turn timed out.");
+        }
+        await interruptSession(baseUrl, password, sessionId);
+        throw new Error("OCT: request cancelled.");
       }
       throw error;
     } finally {
+      // Expected close of the SSE reader after the terminal event (or an
+      // early break above). Not evidence of cancellation.
       controller.abort();
     }
     await promptPromise;
-    if (token.isCancellationRequested) {
+    if (cancelRequested || token.isCancellationRequested) {
       await interruptSession(baseUrl, password, sessionId);
       throw new Error("OCT: request cancelled.");
+    }
+    if (timedOut) {
+      await interruptSession(baseUrl, password, sessionId);
+      throw new Error("OCT: turn timed out.");
     }
     if (turnError && !streamed) {
       throw new Error(`OCT: ${turnError}`);
@@ -233,9 +282,9 @@ export async function streamTurn(
       logLine(`Turn on ${sessionId} completed with a non-fatal error after streaming: ${turnError}`);
     }
   } catch (error) {
-    if (token.isCancellationRequested || controller.signal.aborted) {
+    if (cancelRequested || timedOut || token.isCancellationRequested) {
       await interruptSession(baseUrl, password, sessionId);
-      throw new Error("OCT: request cancelled.");
+      throw new Error(timedOut ? "OCT: turn timed out." : "OCT: request cancelled.");
     }
     throw error;
   } finally {

@@ -40,6 +40,117 @@ function hashKey(parts: string[]): string {
   return createHash("sha256").update(parts.join("\u0000"), "utf8").digest("hex").slice(0, 32);
 }
 
+export const DEFAULT_SESSION_TITLE = "OCT Copilot chat";
+export const MAX_SESSION_TITLE_LENGTH = 60;
+
+/** `MM-DD HH:mm` stamp (local time) for fallback titles. */
+function formatTitleStamp(now: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/**
+ * Unique fallback title for turns with no usable prompt text
+ * (empty / attachment-only): `OCT: 4506f33d 10-02 10:42`.
+ * The 8-char suffix comes from the conversation key (`conv:<uuid>` /
+ * `hash:<hex>`), so it is distinct per conversation; the stamp is the
+ * session-create time (≈ first user prompt time, set once at create).
+ */
+export function fallbackSessionTitle(key: string, now: Date = new Date()): string {
+  const rest = key.includes(":") ? key.slice(key.indexOf(":") + 1) : key;
+  const short = (rest || "unknown").slice(0, 8);
+  return `OCT: ${short} ${formatTitleStamp(now)}`;
+}
+
+/**
+ * Derive an engine session title from free text: collapse whitespace,
+ * trim, cap at ~60 chars. Empty/whitespace-only input falls back to the
+ * default so the engine never receives an empty title.
+ */
+export function deriveSessionTitle(firstText: string | undefined | null): string {
+  if (typeof firstText !== "string" || !firstText) {
+    return DEFAULT_SESSION_TITLE;
+  }
+  const collapsed = firstText.replace(/\s+/g, " ").trim();
+  if (!collapsed) {
+    return DEFAULT_SESSION_TITLE;
+  }
+  return collapsed.slice(0, MAX_SESSION_TITLE_LENGTH).trim() || DEFAULT_SESSION_TITLE;
+}
+
+/**
+ * Title seed for a new engine session: the human's actual request text.
+ *
+ * Copilot agent chats do NOT put the query in the first user message. The
+ * first user message is the static global context (`<environment_info>` +
+ * `<workspace_info>` + memory blocks), while the query arrives in a later
+ * user message wrapped as `<userRequest>…</userRequest>` alongside per-turn
+ * `<context>` / `<reminderInstructions>` blocks (see `agentPrompt.tsx`:
+ * `GlobalAgentContext` vs `AgentUserMessage`, default
+ * `userQueryTagName = 'userRequest'`). Naive `messageText(firstUser)` hence
+ * titles every session after the OS string. Scan user messages newest-first
+ * and unwrap the query (EDH 2026-10-02: all titles were
+ * `"<environment_info> The user's current OS is: Windows </envir"`).
+ * Returns "" when no usable prompt exists so the caller can apply the
+ * key-aware `fallbackSessionTitle` (unique per conversation) instead of a
+ * flat default.
+ */
+export function sessionTitleFromMessages(
+  messages: readonly vscode.LanguageModelChatRequestMessage[],
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== vscode.LanguageModelChatMessageRole.User) {
+      continue;
+    }
+    const prompt = extractUserPromptText(messageText(message));
+    if (!prompt || /^(\[(Attachment omitted|Tool (call|result)))/.test(prompt.trim())) {
+      continue;
+    }
+    return deriveSessionTitle(prompt);
+  }
+  return "";
+}
+
+/**
+ * Unwrap the human request from a Copilot-assembled user message. Prefers
+ * `<userRequest>` (plus `user_query` / `userquery` spellings); otherwise
+ * strips the known Copilot context wrapper blocks and returns the remainder.
+ * Attachment blocks (`<attachments>` / `<attachment …>`, EDH 2026-10-02:
+ * attachment-only title leaked `filePath="c:\Us…"` into the session title)
+ * are stripped from both paths: text + attachment keeps the text,
+ * attachment-only yields "" so the caller falls back to the default title.
+ */
+export function extractUserPromptText(raw: string): string {
+  if (typeof raw !== "string" || !raw) {
+    return "";
+  }
+  for (const tag of ["userRequest", "user_query", "userquery"]) {
+    const match = raw.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i"));
+    if (match?.[1]?.trim()) {
+      return stripAttachmentBlocks(match[1]).trim();
+    }
+  }
+  return stripAttachmentBlocks(
+    raw
+      .replace(/<environment_info>[\s\S]*?<\/environment_info>/gi, " ")
+      .replace(/<workspace_info>[\s\S]*?<\/workspace_info>/gi, " ")
+      .replace(/<userMemory>[\s\S]*?<\/userMemory>/gi, " ")
+      .replace(/<sessionMemory>[\s\S]*?<\/sessionMemory>/gi, " ")
+      .replace(/<repoMemory>[\s\S]*?<\/repoMemory>/gi, " ")
+      .replace(/<context>[\s\S]*?<\/context>/gi, " ")
+      .replace(/<reminderInstructions>[\s\S]*?<\/reminderInstructions>/gi, " "),
+  ).trim();
+}
+
+/** Remove Copilot file-attachment blocks (paths/ids are title noise). */
+function stripAttachmentBlocks(text: string): string {
+  return text
+    .replace(/<attachments>[\s\S]*?<\/attachments>/gi, " ")
+    .replace(/<attachment\b[^>]*>[\s\S]*?<\/attachment>/gi, " ")
+    .replace(/<attachment\b[^>]*\/>/gi, " ");
+}
+
 /**
  * Derive the conversation key. Prefers a stable per-chat id from
  * `options.modelOptions` / `options` when present; falls back to a hash of
@@ -182,17 +293,49 @@ export class OctSessionMap {
   }
 
   /**
+   * Drop every mapping whose session id is in `deadIds` (operator-initiated
+   * prune during the status pass). Returns the pruned conversation keys.
+   * Non-dead entries are untouched; persistence follows only when changed.
+   */
+  pruneBySessionIds(deadIds: Set<string>): string[] {
+    const pruned: string[] = [];
+    for (const [key, entry] of [...this.entries.entries()]) {
+      if (deadIds.has(entry.sessionId)) {
+        this.entries.delete(key);
+        this.unverified.delete(key);
+        pruned.push(key);
+        logLine(`Session ${entry.sessionId} for ${key} no longer exists; pruned from the map.`);
+      }
+    }
+    if (pruned.length > 0) {
+      this.persist();
+    }
+    return pruned;
+  }
+
+  /** Snapshot of the conversation→session map for status/diagnostics. */
+  snapshot(): Array<{ key: string; sessionId: string; modelKey: string }> {
+    return [...this.entries.entries()].map(([key, entry]) => ({
+      key,
+      sessionId: entry.sessionId,
+      modelKey: entry.modelKey,
+    }));
+  }
+
+  /**
    * Get the mapped session or create one. Restored entries are verified with
    * `GET /api/session/:id` on first use: a 404 remaps the conversation to a
    * fresh session instead of failing the turn. When the mapped session was
    * created under a different picker model, pin it via `switchModel` so
-   * subsequent turns use the requested model.
+   * subsequent turns use the requested model. `titleSeed` is the raw first
+   * user text used only at create time (no retitle-on-drift).
    */
   getOrCreate(
     key: string,
     deps: SessionDeps,
     model: { id: string; providerID: string; pickerId: string },
     token?: vscode.CancellationToken,
+    titleSeed?: string,
   ): Promise<string> {
     const existing = this.entries.get(key);
     if (existing && !this.unverified.has(key)) {
@@ -207,7 +350,7 @@ export class OctSessionMap {
     if (running) {
       return running;
     }
-    const resolved = this.resolveSlow(key, deps, model, token).finally(() => {
+    const resolved = this.resolveSlow(key, deps, model, token, titleSeed).finally(() => {
       if (this.inflight.get(key) === resolved) {
         this.inflight.delete(key);
       }
@@ -221,6 +364,7 @@ export class OctSessionMap {
     deps: SessionDeps,
     model: { id: string; providerID: string; pickerId: string },
     token?: vscode.CancellationToken,
+    titleSeed?: string,
   ): Promise<string> {
     const existing = this.entries.get(key);
     if (existing) {
@@ -228,7 +372,7 @@ export class OctSessionMap {
       if (this.unverified.has(key)) {
         const alive = await this.verify(key, existing, deps);
         if (!alive) {
-          return this.create(key, deps, model, token);
+          return this.create(key, deps, model, token, titleSeed);
         }
       }
       if (existing.modelKey !== model.pickerId) {
@@ -236,7 +380,7 @@ export class OctSessionMap {
       }
       return existing.sessionId;
     }
-    return this.create(key, deps, model, token);
+    return this.create(key, deps, model, token, titleSeed);
   }
 
   /**
@@ -291,12 +435,14 @@ export class OctSessionMap {
     deps: SessionDeps,
     model: { id: string; providerID: string; pickerId: string },
     token?: vscode.CancellationToken,
+    titleSeed?: string,
   ): Promise<string> {
     if (token?.isCancellationRequested) {
       throw new Error("OCT: request cancelled before session create.");
     }
+    const seed = titleSeed?.trim() ? deriveSessionTitle(titleSeed) : fallbackSessionTitle(key);
     const info: SessionInfo = await createSession(deps.baseUrl, deps.password, {
-      title: "OCT Copilot chat",
+      title: seed,
       directory: deps.directory || undefined,
       model: { id: model.id, providerID: model.providerID },
     });

@@ -3,7 +3,7 @@ import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
 import { toOctModels, type OctModel } from "./models";
 import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
-import { conversationKey, OctSessionMap } from "./sessions";
+import { conversationKey, OctSessionMap, sessionTitleFromMessages } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
 import { mapCopilotTools, type ToolShuttle } from "./tools";
 import { type PermissionTranslator } from "./permissions";
@@ -54,6 +54,21 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     this.changeEmitter.fire();
   }
 
+  /** Snapshot of the conversation→session map for status/diagnostics. */
+  mappedSessions(): Array<{ key: string; sessionId: string; modelKey: string }> {
+    return this.sessions.snapshot();
+  }
+
+  /** Drop mappings whose engine sessions are gone (status prune pass). */
+  pruneMappedSessions(deadSessionIds: Set<string>): string[] {
+    return this.sessions.pruneBySessionIds(deadSessionIds);
+  }
+
+  /** Credentials for status/diagnostics passes. Never log the password. */
+  serverTarget(): { baseUrl: string; password: string } {
+    return { baseUrl: this.deps.baseUrl, password: this.deps.password };
+  }
+
   dispose(): void {
     this.changeEmitter.dispose();
     this.sessions.clear();
@@ -101,7 +116,8 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     );
     const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory };
     const modelRef = { id: model.modelID, providerID: model.providerID, pickerId: model.id };
-    const sessionId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token);
+    const titleSeed = sessionTitleFromMessages(messages);
+    const sessionId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token, titleSeed);
     const hooks = {
       shuttle: this.deps.shuttle,
       translator: this.deps.translator,
@@ -217,7 +233,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       logLine(`Turn on ${sessionId} hit instruction-blocked; dropping the mapping and retrying once on a fresh session.`);
       this.sessions.forget(key);
       this.deps.translator.forget(sessionId);
-      const freshId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token);
+      const freshId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token, titleSeed);
       logLine(`Turn on ${freshId} (${model.id}, retry after instruction-blocked).`);
       try {
         await turn(freshId);

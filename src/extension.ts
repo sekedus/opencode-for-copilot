@@ -5,6 +5,7 @@ import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
+import { listSessions } from "./server/client";
 import { PermissionTranslator } from "./provider/permissions";
 import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
@@ -112,11 +113,74 @@ async function statusCommand(): Promise<void> {
   if (settings.enabled && !serverManager) {
     lines.push("hint: enabled but the server was never started in this window — reload the window (the Enable command asks for this). ");
   }
+  await appendSessionList(lines);
   getOutputChannel().show(true);
   for (const line of lines) {
     logLine(line);
   }
   vscode.window.showInformationMessage(lines.join("\n"));
+}
+
+/** Shorten a conversation key for the status list (`conv:<id>` / `hash:<hex>`). */
+function shortConversationKey(key: string): string {
+  const idx = key.indexOf(":");
+  if (idx < 0) {
+    return key;
+  }
+  const prefix = key.slice(0, idx);
+  const rest = key.slice(idx + 1);
+  return rest.length > 12 ? `${prefix}:${rest.slice(0, 12)}…` : key;
+}
+
+/**
+ * Append the conversation→session list to the status output. One engine
+ * `GET /api/session` pass supplies titles + existence; entries missing from
+ * the engine list are pruned from the persisted map (operator-initiated,
+ * same remap philosophy as B-0001). No background polling: this runs only
+ * on `OCT: Show Status`. Never prunes when the list call itself fails.
+ */
+async function appendSessionList(lines: string[]): Promise<void> {
+  if (!chatProvider) {
+    lines.push("sessions: (provider not active)");
+    return;
+  }
+  if (serverManager?.getState().status !== "connected") {
+    lines.push("sessions: (server not connected — map not checked)");
+    return;
+  }
+  const mapped = chatProvider.mappedSessions();
+  if (mapped.length === 0) {
+    lines.push("sessions: 0 mapped conversation(s)");
+    return;
+  }
+  const { baseUrl, password } = chatProvider.serverTarget();
+  let byId: Map<string, string>;
+  let engineCount = 0;
+  try {
+    const listed = await listSessions(baseUrl, password, { limit: 100 });
+    engineCount = listed.length;
+    byId = new Map(
+      listed.map((s) => [s.id, typeof s.title === "string" && s.title ? s.title : "(untitled)"]),
+    );
+  } catch (error) {
+    lines.push(
+      `sessions: ${String(mapped.length)} mapped conversation(s) (list failed, map unchanged: ${error instanceof Error ? error.message : String(error)})`,
+    );
+    return;
+  }
+  const deadEntries = mapped.filter((entry) => !byId.has(entry.sessionId));
+  if (deadEntries.length > 0) {
+    chatProvider.pruneMappedSessions(new Set(deadEntries.map((entry) => entry.sessionId)));
+  }
+  lines.push(`sessions: ${String(mapped.length)} mapped conversation(s), ${String(engineCount)} engine session(s)`);
+  for (const entry of mapped) {
+    if (byId.has(entry.sessionId)) {
+      const title = byId.get(entry.sessionId) ?? "(untitled)";
+      lines.push(`  ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title}" (found)`);
+    } else {
+      lines.push(`  ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] (missing — pruned)`);
+    }
+  }
 }
 
 async function refreshModelsCommand(): Promise<void> {

@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0006 COMPLETE; B-0003/B-0004/B-0005 verified; commit through aa9886d + uncommitted T-0006/B-record/README work; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0007 COMPLETE; B-0003/B-0004/B-0005 verified; commit through 950f88a + uncommitted T-0007 work; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,14 +17,12 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 
 ## Current Task
 
-None — T-0006 COMPLETE (verified 2026-10-02). Next: commit checkpoint, then remaining M2 (session title/sync, tests, VSIX).
+None — T-0007 COMPLETE (verified 2026-10-02), commit pending. Next M2: tests + VSIX (unscoped).
 
 ## Current Step
 
-T-0006 done: shuttle loop + approvals verified in EDH (Steps 1–8, attempts
-1–8); B-0003/B-0004/B-0005 found, fixed, re-verified; README refreshed.
-Uncommitted: T-0006 implementation, 3 bug records, README, roadmap/now.md.
-Next: commit checkpoint (policy: ask).
+T-0007 COMPLETE 2026-10-02 (EDH attempt 3: #1 + #2 PASS; unique fallback `OCT: <key8> <MM-DD HH:mm>` implemented + script-verified).
+Next: commit checkpoint (policy: ask), then M2 tests + VSIX.
 OPEN: EDH redo (image workspace) + Steps 3–8.
 
 ## Objective
@@ -32,6 +30,8 @@ OPEN: EDH redo (image workspace) + Steps 3–8.
 Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Copilot Chat as provider "OCT", with opt-in gate, managed server, and 1 conversation = 1 session reuse (text-only MVP).
 
 ## Last Completed
+
+- T-0007 COMPLETE (20261002): derived engine titles (`<userRequest>` unwrap, attachment stripping) + unique `OCT: <key8> <MM-DD HH:mm>` fallback + status list with prune; EDH attempts 1–3 (#1/#2/#3/#4/#5 PASS).
 
 - T-0006 COMPLETE (20261002): tool bridge verified in EDH (Steps 1–8).
 - B-0003/B-0004/B-0005 (20261002, verified): re-emit spin, continuation
@@ -66,7 +66,11 @@ None.
 - `dev/tasks/T-0004-tool-bridge-spike.md`
 - `dev/tasks/T-0005-plugin-echo-tool-spike.md`
 - `dev/tasks/T-0006-copilot-tool-bridge.md`
-- `plugin/oct-tools/index.js` (new: bundled bridge plugin)
+- `dev/tasks/T-0007-session-title-sync.md`
+- `src/server/client.ts` (T-0007: `listSessions` + `updateSession`)
+- `src/provider/sessions.ts` (T-0007: title derivation + prune helper)
+- `src/extension.ts` (T-0007: status list)
+- `src/provider/octProvider.ts` (T-0007: title seed + map accessors)- `plugin/oct-tools/index.js` (new: bundled bridge plugin)
 - `src/provider/tools.ts` (new: shuttle + callback server)
 - `src/provider/permissions.ts` (new: approval translator)
 - `docs/adr/0001-oct-bridge-architecture.md`
@@ -80,11 +84,15 @@ None.
 
 ## Verification
 
-Status: VERIFIED (T-0006 complete 2026-10-02)
+Status: VERIFIED (T-0006 + T-0007 complete 2026-10-02; commit pending)
 
 Evidence:
 
-- `npx tsc --noEmit -p ./` + `npm run compile` exit 0 (2026-10-02).
+- `npx tsc --noEmit -p ./` + `npm run compile` exit 0 (2026-10-02, T-0007).
+- T-0007 live engine checks PASSED 2026-10-02 (opencode v2.0.21: create with title → get/list return title → PATCH rename → 404 path).
+- T-0007 EDH attempt 1 (2026-10-02): reuse/reload-persist/prune PASS; title derivation FAIL (all titles were the Copilot `<environment_info>` OS string — first user message is global context, query is in `<userRequest>`); fixed via `extractUserPromptText` + newest-first scan.
+- T-0007 EDH attempt 2 (2026-10-02): #1 title PASS (`"T7 alpha bravo <timestamp>"` on `ses_f03cbc34…` — `<userRequest>` fix confirmed); #2 attachment-only FAIL (raw `<attachments>` markup leaked into title on `ses_f03c9aca…`) → fixed via `stripAttachmentBlocks`.
+- T-0007 EDH attempt 3 (2026-10-02): #1 + #2 PASS; unique fallback `OCT: <key8> <MM-DD HH:mm>` implemented + script-verified (distinct per conversation, `tsc` clean).
 - T-0006 engine probes VERIFIED 2026-10-01 (task Probe Log).
 - EDH Steps 1–8 VERIFIED 2026-10-01/02 (attempts 1–8; task Evidence + checklist).
 - External fallback VERIFIED (text-only + notice, no crash).
@@ -104,7 +112,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## README Status
 
-CURRENT — tool bridge documented (execution, approvals, trust, timeouts, external install, text-only fallback) 2026-10-02.
+CURRENT — session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
 
 ## Important Context
 
@@ -116,10 +124,9 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0006 COMPLETE 2026-10-02: implementation + engine probes + EDH Steps 1–8
-(attempts 1–8); B-0003/B-0004/B-0005 fixed + re-verified; README refreshed.
+T-0007 COMPLETE 2026-10-02 (EDH attempt 3: #1 + #2 PASS; unique fallback implemented + script-verified; `tsc` clean).
 Uncommitted work awaits checkpoint decision.
 
 ## Resume Instruction
 
-Read this file first. T-0006 is complete; commit the checkpoint, then continue with remaining M2 (session title/sync, tests, VSIX).
+Read this file first. T-0007 is COMPLETE (commit pending); remaining M2 is tests + VSIX (unscoped).

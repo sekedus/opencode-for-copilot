@@ -168,6 +168,63 @@ export async function getSession(
   return raw.data;
 }
 
+export interface SessionListQuery {
+  directory?: string;
+  limit?: number;
+}
+
+/**
+ * `GET /api/session` — list sessions (newest first by default).
+ * Returns the `data` page only; callers needing full history must follow
+ * `cursor.next` themselves. T-0007 uses one page (limit 100) for the status
+ * list — the conversation map caps at 50, so a single page covers it.
+ * No directory filter by default: filtering would hide sessions from other
+ * directories and cause false prune positives in the status pass.
+ */
+export async function listSessions(
+  baseUrl: string,
+  password: string,
+  query?: SessionListQuery,
+  timeoutMs = 15000,
+): Promise<SessionInfo[]> {
+  const params = new URLSearchParams();
+  if (query?.directory) {
+    params.set("directory", query.directory);
+  }
+  if (query?.limit !== undefined) {
+    params.set("limit", String(query.limit));
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  const raw = (await requestJson(
+    baseUrl,
+    password,
+    "GET",
+    `/api/session${suffix}`,
+    undefined,
+    timeoutMs,
+  )) as { data: SessionInfo[] };
+  return raw.data ?? [];
+}
+
+/**
+ * `PATCH /api/session/:id` — update mutable session properties (title).
+ * Returns NoContent on success. Added for T-0007 diagnostics/future use;
+ * the bridge sets the title at create time and does no auto-retitle.
+ */
+export async function updateSession(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  input: { title?: string },
+  timeoutMs = 15000,
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (input.title !== undefined) {
+    body["title"] = input.title;
+  }
+  await requestJson(baseUrl, password, "PATCH", `/api/session/${encodeURIComponent(sessionId)}`, body, timeoutMs);
+}
+
 /** `POST /api/session/:id/model` — pin the session to the picker model. */
 export async function switchSessionModel(
   baseUrl: string,

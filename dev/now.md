@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0007 COMPLETE; B-0003/B-0004/B-0005 verified; commit through 950f88a + uncommitted T-0007 work; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0008 COMPLETE; B-0003/B-0004/B-0005 verified; commit d2a1bbf + uncommitted T-0008 work; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,12 +17,12 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 
 ## Current Task
 
-None — T-0007 COMPLETE (verified 2026-10-02), commit pending. Next M2: tests + VSIX (unscoped).
+None — T-0008 COMPLETE (verified 2026-10-02: `npm test` 32/32), commit pending. Next M2: VSIX packaging (unscoped).
 
 ## Current Step
 
-T-0007 COMPLETE 2026-10-02 (EDH attempt 3: #1 + #2 PASS; unique fallback `OCT: <key8> <MM-DD HH:mm>` implemented + script-verified).
-Next: commit checkpoint (policy: ask), then M2 tests + VSIX.
+T-0008 COMPLETE 2026-10-02 (`npm test` 32/32 green, zero new deps; EDH regressions committed as units).
+Next: commit checkpoint (policy: ask), then VSIX packaging.
 OPEN: EDH redo (image workspace) + Steps 3–8.
 
 ## Objective
@@ -31,6 +31,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
+- T-0008 COMPLETE (20261002): zero-dep `node:test` harness (`vscode` mock + NODE_PATH shim + runner) with 32 session/message units incl. EDH regressions; main build untouched.
 - T-0007 COMPLETE (20261002): derived engine titles (`<userRequest>` unwrap, attachment stripping) + unique `OCT: <key8> <MM-DD HH:mm>` fallback + status list with prune; EDH attempts 1–3 (#1/#2/#3/#4/#5 PASS).
 
 - T-0006 COMPLETE (20261002): tool bridge verified in EDH (Steps 1–8).
@@ -48,11 +49,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_RECONCILED_T-0006_COMBINED
+STATE_RECONCILED_POST_T-0007_COMMIT
 
 ## Next Action
 
-Start T-0006 (combined tool bridge) or commit state (policy: ask).
+Scope remaining M2 (tests + VSIX packaging) as bounded tasks, or run the EDH redo (image workspace).
 
 ## Current Blocker
 
@@ -70,7 +71,8 @@ None.
 - `src/server/client.ts` (T-0007: `listSessions` + `updateSession`)
 - `src/provider/sessions.ts` (T-0007: title derivation + prune helper)
 - `src/extension.ts` (T-0007: status list)
-- `src/provider/octProvider.ts` (T-0007: title seed + map accessors)- `plugin/oct-tools/index.js` (new: bundled bridge plugin)
+- `src/provider/octProvider.ts` (T-0007: title seed + map accessors)
+- `plugin/oct-tools/index.js` (new: bundled bridge plugin)
 - `src/provider/tools.ts` (new: shuttle + callback server)
 - `src/provider/permissions.ts` (new: approval translator)
 - `docs/adr/0001-oct-bridge-architecture.md`
@@ -84,7 +86,7 @@ None.
 
 ## Verification
 
-Status: VERIFIED (T-0006 + T-0007 complete 2026-10-02; commit pending)
+Status: VERIFIED (T-0006..T-0008 complete 2026-10-02; T-0008 commit pending)
 
 Evidence:
 
@@ -108,7 +110,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`115ebb5 feat: bridge Copilot tools with engine permission approvals` (T-0006 + B-0003/B-0004/B-0005 records + README refresh). Worktree clean.
+`d2a1bbf feat: derive engine session titles and list synced sessions` (T-0007 complete + verified). Worktree clean at commit time.
 
 ## README Status
 
@@ -124,9 +126,9 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0007 COMPLETE 2026-10-02 (EDH attempt 3: #1 + #2 PASS; unique fallback implemented + script-verified; `tsc` clean).
+T-0008 COMPLETE 2026-10-02 (`npm test` 32/32 green, zero new deps).
 Uncommitted work awaits checkpoint decision.
 
 ## Resume Instruction
 
-Read this file first. T-0007 is COMPLETE (commit pending); remaining M2 is tests + VSIX (unscoped).
+Read this file first. T-0008 is COMPLETE (commit pending); remaining M2 is VSIX packaging (unscoped).

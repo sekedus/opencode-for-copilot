@@ -33,7 +33,7 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 - Runtime: Node 20+ (extension host); opencode v2.0.x (verified against 2.0.21)
 - Database: none (in-memory conversation-id map + opencode server state)
 - Build tools: TypeScript `tsc`, esbuild (planned), `vsce` packaging
-- Test tools: Vitest or node:test for session-map + message-convert units (planned)
+- Test tools: `node:test` (built-in, zero new deps) for session-map + message-convert units; EDH regression cases committed (`test/`, `npm test`).
 
 ## Project Constraints
 

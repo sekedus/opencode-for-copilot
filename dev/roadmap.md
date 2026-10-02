@@ -16,6 +16,7 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 - `T-0005` — Plugin echo-tool spike (block-and-resume loop) — COMPLETE (GO: block-and-resume + interrupt + filter proven; direct codemode:false tools).
 - `T-0006` — Copilot tool bridge (execution + approvals) — COMPLETE (verified 2026-10-02: shuttle loop, approvals, B-0003/B-0004/B-0005 fixed).
 - `T-0007` — Session title and sync — COMPLETE (verified 2026-10-02: derived engine titles + status list with prune; unique `OCT: <key8> <MM-DD HH:mm>` fallback; no reaper).
+- `T-0008` — Unit tests (harness + pure-logic coverage) — COMPLETE (verified 2026-10-02: `npm test` 32/32 green, zero new deps).
 
 ## Future Milestones
 

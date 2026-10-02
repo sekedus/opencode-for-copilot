@@ -1,14 +1,18 @@
 import * as vscode from "vscode";
-import { listModels } from "../server/client";
+import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
 import { toOctModels, type OctModel } from "./models";
-import { buildPromptText, hasToolParts } from "./messages";
+import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
 import { conversationKey, OctSessionMap } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
+import { mapCopilotTools, type ToolShuttle } from "./tools";
+import { type PermissionTranslator } from "./permissions";
 
 /**
  * OCT chat provider: exposes engine models in the Copilot picker and serves
- * text-only turns with 1 conversation = 1 session reuse.
+ * turns with 1 conversation = 1 session reuse, plus the tool bridge:
+ * Copilot tools execute on the host via the shuttle loop, engine-native
+ * actions surface as approvals.
  */
 
 export interface OctProviderDeps {
@@ -17,6 +21,12 @@ export interface OctProviderDeps {
   directory: string;
   /** Persisted conversation→session map across window reloads. */
   sessionStore?: vscode.Memento;
+  /** Shared tool shuttle (callback server + blocked-executor table). */
+  shuttle: ToolShuttle;
+  translator: PermissionTranslator;
+  permissionTimeoutMs: number;
+  /** Managed mode installs the bridge plugin itself; external mode needs it manually. */
+  managed: boolean;
 }
 
 const TOOL_NOTICE =
@@ -92,14 +102,108 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory };
     const modelRef = { id: model.modelID, providerID: model.providerID, pickerId: model.id };
     const sessionId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token);
-    let promptText = buildPromptText(messages);
-    if (hasToolParts(messages) || (options.tools?.length ?? 0) > 0) {
-      promptText = `${TOOL_NOTICE}\n\n${promptText}`;
-      logLine(`Turn on ${sessionId} carries tool definitions; answering text-only.`);
-    }
-    logLine(`Turn on ${sessionId} (${model.id}, ${promptText.length} chars).`);
-    const turn = (id: string) =>
-      streamTurn({ baseUrl: this.deps.baseUrl, password: this.deps.password, sessionId: id, promptText }, progress, token);
+    const hooks = {
+      shuttle: this.deps.shuttle,
+      translator: this.deps.translator,
+      permissionTimeoutMs: this.deps.permissionTimeoutMs,
+    };
+    const streamDepsFor = (sid: string) => ({ baseUrl: this.deps.baseUrl, password: this.deps.password, sessionId: sid });
+    const finishTurn = async (sid: string, outcome: { kind: string }): Promise<void> => {
+      if (outcome.kind === "done") {
+        this.deps.shuttle.clearPending(sid);
+      }
+    };
+    const failTurn = async (sid: string): Promise<void> => {
+      // Cancel/timeout/transport failure: unblock executors so the engine
+      // never hangs, and drop stale pending tools.
+      this.deps.shuttle.abortAll(sid, "turn failed");
+      this.deps.shuttle.clearPending(sid);
+      await interruptSession(this.deps.baseUrl, this.deps.password, sid);
+    };
+    const runContinuation = async (sid: string, matched: Array<{ callId: string; text: string }>): Promise<void> => {
+      // Feed host results back WITHOUT prompting: the engine loop is blocked
+      // in the executors. Resolve synchronously BEFORE streaming: deferring
+      // the resolve past subscription lets the guard divert the continuation
+      // to a new pause first, starving the oldest call forever (B-0004).
+      // No text is lost by resolving early — the engine needs a full model
+      // round-trip before it can stream new deltas, long after SSE opens.
+      for (const result of matched) {
+        this.deps.shuttle.resolve(sid, result.callId, result.text);
+      }
+      const outcome = await streamTurn({ ...streamDepsFor(sid), promptText: null }, progress, token, hooks);
+      await finishTurn(sid, outcome);
+    };
+    const runNewTurn = async (sid: string): Promise<void> => {
+      let promptText = buildPromptText(messages);
+      const copilotTools = options.tools ?? [];
+      if (copilotTools.length > 0) {
+        const bridgeAvailable = this.deps.managed || this.deps.shuttle.bridgeSeen;
+        const defs = bridgeAvailable ? mapCopilotTools(copilotTools) : [];
+        if (defs.length > 0) {
+          this.deps.shuttle.setPending(sid, defs);
+          logLine(`Turn on ${sid} carries ${String(defs.length)} Copilot tool(s) via the bridge.`);
+        } else if (!this.deps.shuttle.hasPending(sid)) {
+          promptText = `${TOOL_NOTICE}\n\n${promptText}`;
+          logLine(
+            `Turn on ${sid} carries tool definitions but the bridge is unavailable ` +
+              `(external mode without the plugin); answering text-only.`,
+          );
+        } else {
+          logLine(`Turn on ${sid} reuses ${String(this.deps.shuttle.pendingFor(sid).length)} pending bridge tool(s).`);
+        }
+      } else if (hasToolParts(messages)) {
+        promptText = `${TOOL_NOTICE}\n\n${promptText}`;
+        logLine(`Turn on ${sid} carries tool parts without definitions; answering text-only.`);
+      }
+      logLine(`Turn on ${sid} (${model.id}, ${promptText.length} chars).`);
+      const outcome = await streamTurn({ ...streamDepsFor(sid), promptText }, progress, token, hooks);
+      await finishTurn(sid, outcome);
+    };
+    // Route to the shuttle loop: results matching blocked executors continue
+    // the engine turn; anything else starts a new turn. A call that arrives
+    // with blocked executors but no results and nothing new to emit is a
+    // stuck turn (the host dedupes repeat callIds, so re-emitting spins
+    // forever) — abort it and start fresh instead of re-pausing.
+    const turn = async (sid: string): Promise<void> => {
+      const results = extractToolResults(messages);
+      const blocked = this.deps.shuttle.blockedFor(sid);
+      const blockedIds = new Set(blocked.map((call) => call.engineId));
+      const matched = results.filter((result) => blockedIds.has(result.callId));
+      const unemitted = this.deps.shuttle.unemittedBlocked(sid);
+      logLine(
+        `Turn on ${sid}: ${String(results.length)} result(s), ` +
+          `${String(blocked.length)} blocked (${String(unemitted.length)} unemitted), ` +
+          `${String(matched.length)} matched.`,
+      );
+      try {
+        if (matched.length > 0) {
+          if (matched.length < results.length) {
+            const known = new Set(matched.map((result) => result.callId));
+            const stale = results
+              .filter((result) => !known.has(result.callId))
+              .map((result) => result.callId.slice(0, 8));
+            logLine(`Turn on ${sid}: ${String(stale.length)} stale result(s) ignored (${stale.join(",")}).`);
+          }
+          await runContinuation(sid, matched);
+          return;
+        }
+        if (blocked.length > 0 && unemitted.length === 0) {
+          logLine(`Turn on ${sid}: stuck turn (no results, nothing new to emit); aborting ${String(blocked.length)} blocked call(s).`);
+          this.deps.shuttle.abortAll(sid, "stuck turn without results");
+          await interruptSession(this.deps.baseUrl, this.deps.password, sid);
+        } else if (results.length > 0 && blocked.length > 0) {
+          // Host answered something else (or a new message arrived) while
+          // executors were blocked: supersede, interrupt, start fresh.
+          logLine(`Turn on ${sid}: superseding ${String(blocked.length)} blocked call(s).`);
+          this.deps.shuttle.abortAll(sid, "superseded by new turn");
+          await interruptSession(this.deps.baseUrl, this.deps.password, sid);
+        }
+        await runNewTurn(sid);
+      } catch (error) {
+        await failTurn(sid);
+        throw error;
+      }
+    };
     try {
       await turn(sessionId);
     } catch (error) {
@@ -112,6 +216,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       // once on a fresh session (heals transient discovery failures).
       logLine(`Turn on ${sessionId} hit instruction-blocked; dropping the mapping and retrying once on a fresh session.`);
       this.sessions.forget(key);
+      this.deps.translator.forget(sessionId);
       const freshId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token);
       logLine(`Turn on ${freshId} (${model.id}, retry after instruction-blocked).`);
       try {

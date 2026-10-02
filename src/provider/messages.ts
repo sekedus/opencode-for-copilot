@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { toolResultToText } from "./tools";
 
 /**
  * Convert Copilot chat messages to a single opencode prompt text.
@@ -67,6 +68,28 @@ export function hasToolParts(messages: readonly vscode.LanguageModelChatRequestM
     }
   }
   return false;
+}
+
+export interface ExtractedToolResult {
+  callId: string;
+  text: string;
+}
+
+/**
+ * Collect host-executed tool results (User messages carrying
+ * `LanguageModelToolResultPart`). Text-serialized for executor replies;
+ * image/data parts become placeholders (multimodal deferred).
+ */
+export function extractToolResults(messages: readonly vscode.LanguageModelChatRequestMessage[]): ExtractedToolResult[] {
+  const out: ExtractedToolResult[] = [];
+  for (const message of messages) {
+    for (const part of message.content) {
+      if (part instanceof vscode.LanguageModelToolResultPart) {
+        out.push({ callId: part.callId, text: toolResultToText(part.content) });
+      }
+    }
+  }
+  return out;
 }
 
 /**

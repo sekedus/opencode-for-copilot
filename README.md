@@ -13,9 +13,10 @@ Opencode runs as a background local engine; Copilot Chat stays the GUI; this ext
 ## Current state
 
 - Milestone M1 (text-only MVP) COMPLETE: `T-0001` shell + gate, `T-0002` server manager, `T-0003` chat provider with 1 conversation = 1 session reuse — all verified 2026-09-29.
-- Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only.
+- Milestone M2 tool bridge (`T-0006`) COMPLETE and verified 2026-10-02: Copilot tools execute through the engine via a bundled plugin + shuttle loop; engine-native permission requests surface as VS Code confirmations with default-deny.
+- Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only (verified against 2.0.21).
 - Disabled by default; explicit `OCT: Enable` + reload required (background RAM cost).
-- Pick an `OCT` model in the Copilot model picker; multi-turn conversations reuse one opencode session (text-only; tool definitions get a notice, no execution).
+- Pick an `OCT` model in the Copilot model picker; multi-turn conversations reuse one opencode session.
 
 ## Setup
 
@@ -34,7 +35,17 @@ npx tsc --noEmit -p ./
 
 Press `F5` for the Extension Development Host, then run `OCT: Enable Opencode Engine` from the command palette, reload, pick an `OCT` model in Copilot Chat.
 
-Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`).
+Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`), `oct.permissionTimeoutMs` (approval no-answer timeout, default 60000), `oct.callbackToken` (stable callback token for external servers; empty = per-window random).
+
+## Tool bridge
+
+Agent-mode turns work end to end: the engine calls Copilot tools through the bundled `oct-tools` plugin, the host executes them, results flow back, and the engine answers with them. Parallel calls in one step are supported; 1 conversation = 1 session holds across tool turns; cancelling interrupts the session and unblocks executors.
+
+Engine-native actions (edit/write/shell under the engine's ask policy) pause the turn with a `OCT needs approval` warning: **Continue Once** (`once`), **Always for This Session** (client-side auto-`once` for the rest of that session — the bridge never sends `always`, and VS Code's Allow-all never propagates), or **Cancel**. Timeout (configurable), dismiss, disconnect, or VS Code cancellation all resolve to deny; an undeliverable reply falls back to interrupting the session. A denied turn ends with one clean sentence, not an error. Every decision is logged (action + resources only).
+
+- Managed mode installs the plugin automatically (`OPENCODE_CONFIG_CONTENT` merges with user plugins) and wires the loopback callback (`OCT_CALLBACK_URL`/`OCT_CALLBACK_TOKEN`).
+- External mode (`oct.opencodeUrl`) needs manual install: copy `plugin/oct-tools` to the server, add its absolute path to the server's `plugins` config, and export `OCT_CALLBACK_URL` (from `OCT: Show Status`) plus `OCT_CALLBACK_TOKEN` matching `oct.callbackToken` (set one — the default per-window token cannot be pasted into a persistent server env). Without the plugin, turns stay text-only with a notice (no crash).
+- Text-only results: image-producing tools return a placeholder (multimodal deferred); a circuit breaker stops runaway identical-call loops with a proceed-with-what-you-have instruction.
 
 ## Workflow entry points
 

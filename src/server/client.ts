@@ -236,3 +236,74 @@ export async function promptSession(
     text: input.text,
   }, timeoutMs);
 }
+
+export interface PermissionFileChange {
+  file?: string;
+  patch?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface PermissionRequestItem {
+  id: string;
+  sessionID: string;
+  action: string;
+  resources: string[];
+  save?: string[];
+  metadata?: { files?: PermissionFileChange[]; [key: string]: unknown };
+  source?: { type?: string; messageID?: string; id?: string };
+  message?: string;
+  [key: string]: unknown;
+}
+
+export type PermissionDecision = "once" | "always" | "reject";
+
+/** `GET /api/session/:id/permission` — list pending approval requests. */
+export async function listSessionPermissions(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  timeoutMs = 15000,
+): Promise<PermissionRequestItem[]> {
+  const raw = (await requestJson(
+    baseUrl,
+    password,
+    "GET",
+    `/api/session/${encodeURIComponent(sessionId)}/permission`,
+    undefined,
+    timeoutMs,
+  )) as { data: PermissionRequestItem[] };
+  return raw.data ?? [];
+}
+
+/**
+ * `POST /api/session/:id/permission/:req/reply` — answer an approval.
+ * Returns `"gone"` when the request already resolved (404 is benign);
+ * throws on any other failure so the caller can interrupt as fallback.
+ */
+export async function replySessionPermission(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  requestId: string,
+  decision: PermissionDecision,
+  message?: string,
+  timeoutMs = 15000,
+): Promise<"replied" | "gone"> {
+  try {
+    await requestJson(
+      baseUrl,
+      password,
+      "POST",
+      `/api/session/${encodeURIComponent(sessionId)}/permission/${encodeURIComponent(requestId)}/reply`,
+      message === undefined ? { decision } : { decision, message },
+      timeoutMs,
+    );
+    return "replied";
+  } catch (error) {
+    if (error instanceof OctHttpError && error.status === 404) {
+      return "gone";
+    }
+    throw error;
+  }
+}

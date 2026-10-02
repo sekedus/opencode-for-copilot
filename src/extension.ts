@@ -1,13 +1,18 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
+import { PermissionTranslator } from "./provider/permissions";
+import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
 
 let serverManager: OctServerManager | undefined;
 let chatProvider: OctChatProvider | undefined;
+const shuttle = new ToolShuttle();
+const translator = new PermissionTranslator();
 
 function workspaceCwd(): string {
   const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -94,6 +99,9 @@ async function statusCommand(): Promise<void> {
     `server mode: ${server?.mode ?? (configuredUrl ? "external" : "managed")}`,
     `server status: ${server?.status ?? "disconnected"}`,
     `vendor: ${OCT_VENDOR}`,
+    `tool callback: ${shuttle.url || "(not started)"}`,
+    `pending approvals: ${String(translator.pendingCount())}`,
+    `bridge plugin: ${server?.mode === "external" ? "manual install required (see README)" : "bundled via managed server"}`,
   ];
   if (server?.lastError) {
     lines.push(`server error: ${server.lastError}`);
@@ -143,13 +151,18 @@ export function activate(context: vscode.ExtensionContext): void {
   serverManager = new OctServerManager();
   const manager = serverManager;
   context.subscriptions.push({ dispose: () => void manager.stop() });
-  void manager
-    .start({
+  context.subscriptions.push({ dispose: () => void shuttle.dispose("window unload") });
+  void shuttle
+    .start(settings.callbackToken || undefined)
+    .then((callbackUrl) => manager.start({
       binary: settings.opencodeBinary,
       externalUrl: settings.opencodeUrl,
       password: resolveServerPassword(settings),
       cwd: workspaceCwd(),
-    })
+      pluginDir: path.join(context.extensionUri.fsPath, "plugin", "oct-tools"),
+      callbackUrl,
+      callbackToken: shuttle.callbackToken,
+    }))
     .then((state) => {
       if (state.status === "connected" && state.url) {
         const url = state.url;
@@ -158,6 +171,10 @@ export function activate(context: vscode.ExtensionContext): void {
           password: manager.getPassword(),
           directory: workspaceCwd(),
           sessionStore: context.globalState,
+          shuttle,
+          translator,
+          permissionTimeoutMs: settings.permissionTimeoutMs,
+          managed: state.mode === "managed",
         });
         const provider = chatProvider;
         context.subscriptions.push(
@@ -181,5 +198,6 @@ export function deactivate(): void {
   serverManager = undefined;
   chatProvider?.dispose();
   chatProvider = undefined;
+  void shuttle.dispose("deactivate");
   disposeOutputChannel();
 }

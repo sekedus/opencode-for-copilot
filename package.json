@@ -70,6 +70,16 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Optional password for the opencode server (sent as HTTP Basic `opencode:<password>`). Empty = no auth header. Prefer the `OPENCODE_SERVER_PASSWORD` environment variable; this setting is a fallback."
+        },
+        "oct.permissionTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "markdownDescription": "No-answer timeout (ms) for engine approval confirmations. Past the timeout the request is denied (default-deny). Requires a window reload after changing."
+        },
+        "oct.callbackToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Stable token for the tool-bridge callback (external-mode servers only). Empty = a random per-window token (managed mode). Set this when you manually install the bridge plugin on an external server, and export the same value as OCT_CALLBACK_TOKEN there. Requires a window reload after changing."
         }
       }
     },

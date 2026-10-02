@@ -14,6 +14,7 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 - `T-0003` — OCT chat provider with 1:1 session reuse (text-only) — COMPLETE (picker lists engine models; session reuse verified 2026-09-29).
 - `T-0004` — Tool-bridge spike (bidirectional feasibility) — COMPLETE (no injection path; plugin path identified for T-0005).
 - `T-0005` — Plugin echo-tool spike (block-and-resume loop) — COMPLETE (GO: block-and-resume + interrupt + filter proven; direct codemode:false tools).
+- `T-0006` — Copilot tool bridge (execution + approvals) — COMPLETE (verified 2026-10-02: shuttle loop, approvals, B-0003/B-0004/B-0005 fixed).
 
 ## Future Milestones
 

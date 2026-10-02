@@ -1,5 +1,6 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import * as fs from "node:fs";
 import * as net from "node:net";
 import { getInfo } from "./client";
 import { logLine } from "../output";
@@ -128,7 +129,18 @@ export class OctServerManager {
    * Start (or health-check) the server. Idempotent while connected;
    * concurrent callers share the in-flight startup.
    */
-  start(options: { binary: string; externalUrl: string; password: string; cwd: string }): Promise<ServerState> {
+  start(options: {
+    binary: string;
+    externalUrl: string;
+    password: string;
+    cwd: string;
+    /** Absolute dir of the bundled `oct-tools` plugin (managed mode). */
+    pluginDir?: string;
+    /** Extension loopback callback URL for the tool shuttle (managed mode). */
+    callbackUrl?: string;
+    /** Bearer token the plugin sends back to the callback (managed mode). */
+    callbackToken?: string;
+  }): Promise<ServerState> {
     if (this.state.status === "connected") {
       return Promise.resolve(this.getState());
     }
@@ -141,7 +153,15 @@ export class OctServerManager {
     return this.starting;
   }
 
-  private async doStart(options: { binary: string; externalUrl: string; password: string; cwd: string }): Promise<ServerState> {
+  private async doStart(options: {
+    binary: string;
+    externalUrl: string;
+    password: string;
+    cwd: string;
+    pluginDir?: string;
+    callbackUrl?: string;
+    callbackToken?: string;
+  }): Promise<ServerState> {
     const externalUrl = options.externalUrl.trim().replace(/\/+$/, "");
     if (externalUrl) {
       this.password = options.password;
@@ -166,11 +186,26 @@ export class OctServerManager {
     // client always knows the credential. Never logged.
     const managedPassword = options.password || randomBytes(32).toString("base64url");
     this.password = managedPassword;
+    const env: Record<string, string | undefined> = {
+      ...process.env,
+      OPENCODE_PASSWORD: managedPassword,
+      OPENCODE_SERVER_PASSWORD: managedPassword,
+    };
+    if (options.callbackUrl) {
+      env["OCT_CALLBACK_URL"] = options.callbackUrl;
+    }
+    if (options.callbackToken) {
+      env["OCT_CALLBACK_TOKEN"] = options.callbackToken;
+    }
+    const pluginConfig = this.resolvePluginConfig(options.pluginDir);
+    if (pluginConfig) {
+      env["OPENCODE_CONFIG_CONTENT"] = pluginConfig;
+    }
     const args = ["serve", "--hostname", "127.0.0.1", "--port", String(port)];
     logLine(`Spawning managed opencode server (port ${port}) ...`);
     const child = spawn(options.binary, args, {
       cwd: options.cwd,
-      env: { ...process.env, OPENCODE_PASSWORD: managedPassword, OPENCODE_SERVER_PASSWORD: managedPassword },
+      env: env as Record<string, string>,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
       detached: process.platform !== "win32",
@@ -231,6 +266,49 @@ export class OctServerManager {
       await this.killOwned();
     }
     return this.getState();
+  }
+
+  /**
+   * Build the `OPENCODE_CONFIG_CONTENT` payload that installs the bundled
+   * bridge plugin. Config documents MERGE across sources (plugin lists
+   * concatenate), so this adds the bridge without clobbering user plugins.
+   * When the user already exports `OPENCODE_CONFIG_CONTENT`, its other keys
+   * are preserved and our plugin path is appended (deduped).
+   * Returns undefined when no plugin dir applies (external mode / missing).
+   */
+  private resolvePluginConfig(pluginDir: string | undefined): string | undefined {
+    if (!pluginDir) {
+      return undefined;
+    }
+    let normalized = pluginDir.replace(/\\/g, "/").replace(/\/+$/, "");
+    try {
+      if (!fs.statSync(pluginDir).isDirectory()) {
+        logLine(`Bridge plugin missing at ${pluginDir}; managed server starts without the tool bridge.`);
+        return undefined;
+      }
+    } catch {
+      logLine(`Bridge plugin missing at ${pluginDir}; managed server starts without the tool bridge.`);
+      return undefined;
+    }
+    const existing = process.env["OPENCODE_CONFIG_CONTENT"];
+    if (existing) {
+      try {
+        const parsed: unknown = JSON.parse(existing);
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const record = parsed as Record<string, unknown>;
+          const plugins = Array.isArray(record["plugins"]) ? [...(record["plugins"] as unknown[])] : [];
+          if (!plugins.includes(normalized)) {
+            plugins.push(normalized);
+          }
+          logLine("Bridge plugin appended to the existing OPENCODE_CONFIG_CONTENT.");
+          return JSON.stringify({ ...record, plugins });
+        }
+      } catch {
+        logLine("Existing OPENCODE_CONFIG_CONTENT is not JSON; the bridge plugin config replaces it.");
+      }
+    }
+    logLine("Bridge plugin installed on the managed server.");
+    return JSON.stringify({ plugins: [normalized] });
   }
 
   /** Kill the owned child process without touching the failure state. */

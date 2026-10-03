@@ -5,9 +5,9 @@ import { toolResultToText } from "./tools";
  * Convert Copilot chat messages to a single opencode prompt text.
  *
  * The engine owns conversation history server-side (1 conversation = 1
- * session), so the MVP sends only the current turn's text with role labels.
- * Tool-call and data parts are summarized as placeholders — the MVP is
- * text-only and must never silently drop them.
+ * session), so only the current turn's text is sent with role labels.
+ * Tool-call and data parts are summarized as placeholders — the bridge is
+ * text-serialized and must never silently drop them.
  */
 
 function roleLabel(role: vscode.LanguageModelChatMessageRole): string {
@@ -30,7 +30,7 @@ export function partText(part: unknown): string {
     return inner ? `[Tool result ${part.callId}:\n${inner}]` : `[Tool result ${part.callId}: (empty)]`;
   }
   if (part instanceof vscode.LanguageModelDataPart) {
-    return `[Attachment omitted: ${part.mimeType} (${part.data.byteLength} bytes) — text-only MVP]`;
+    return `[Attachment omitted: ${part.mimeType} (${part.data.byteLength} bytes) — non-text content not yet supported]`;
   }
   if (part !== null && typeof part === "object") {
     const text = (part as { value?: unknown }).value;

@@ -114,7 +114,7 @@ export function toolResultToText(content: readonly unknown[]): string {
       continue;
     }
     if (part instanceof vscode.LanguageModelDataPart) {
-      parts.push(`[Attachment omitted: ${part.mimeType} (${part.data.byteLength} bytes) — text-only result]`);
+      parts.push(`[Attachment omitted: ${part.mimeType} (${part.data.byteLength} bytes) — non-text content not yet supported]`);
       continue;
     }
     if (typeof part === "string") {

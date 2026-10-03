@@ -27,9 +27,9 @@ Mark only what applies:
 - [ ] Mobile application
 - [x] Desktop / endpoint application (VS Code extension host)
 - [ ] Network infrastructure
-- [x] LLM / AI application (chat bridge; text-only MVP, no tool execution in bridge)
+- [x] LLM / AI application (chat bridge with Copilot tool execution via the bridge + engine-native approvals)
 - [ ] RAG / vector database
-- [ ] MCP / agent tooling (deferred: tool-call passthrough is post-MVP)
+- [x] MCP / agent tooling (Copilot tools via bundled `oct-tools` plugin + shuttle loop; engine `permission.asked/reply` approvals with default-deny)
 - [ ] Cryptography / key management
 - [ ] Other: ...
 
@@ -37,15 +37,16 @@ Mark only what applies:
 
 Describe the most important trust boundaries:
 
-- Untrusted users: local VS Code user only (no multi-user; extension host trusts workspace content as usual).
-- Public endpoints: none. Bridge binds engine to loopback `127.0.0.1` by default; no inbound ports opened by the extension itself.
-- Authentication boundary: opencode server password (`OPENCODE_SERVER_PASSWORD` / Basic `opencode:<password>`); external URL override is explicit opt-in.
-- Authorization boundary: session IDs are per-conversation secrets in memory; never expose across conversations.
-- Sensitive data: chat text, workspace paths, server password. Never log password/headers; redact in diagnostics.
+- Untrusted users: local VS Code user only (no multi-user; extension host trusts workspace content as usual). Engine tool output and Copilot tool results are untrusted input to the other side (prompt-injection / tool-abuse boundary).
+- Public endpoints: none. Engine binds loopback `127.0.0.1` by default; the extension itself listens on a loopback-only ephemeral callback (`127.0.0.1`, random port) for the tool shuttle, guarded by a bearer token (`OCT_CALLBACK_TOKEN` / `oct.callbackToken`); 1 MB body cap.
+- Authentication boundary: opencode server password (`OPENCODE_SERVER_PASSWORD` / Basic `opencode:<password>`); callback bearer token (managed mode: per-window random; external mode: user-configured stable token); external URL override is explicit opt-in.
+- Authorization boundary: session IDs are per-conversation secrets persisted in `globalState` (`oct.conversationSessions.v1`); never expose across conversations. The callback token authorizes plugin → extension posts only.
+- Sensitive data: chat text, tool inputs/outputs, workspace paths, server password, callback token. Never log password/token/headers/content; tool-shuttle logs record names/sizes only; approval decisions log action + resources only.
 - External services: the engine's own model providers (unchanged by bridge); bridge egress is only to the configured opencode URL.
-- Files / parsing: SSE + JSON from loopback engine; workspace folder path validated as absolute open-folder path.
+- Files / parsing: SSE + JSON from loopback engine plus loopback plugin callbacks; workspace folder path validated as absolute open-folder path; plugin installed via `OPENCODE_CONFIG_CONTENT` merge (managed) or manual absolute-path install (external).
 - Network egress: loopback to engine; engine's own upstream calls out of scope.
-- Deployment/infrastructure: local VSIX; no cloud, no CI secrets in MVP.
+- Deployment/infrastructure: local VSIX; no cloud, no CI secrets.
+- Approvals: engine-native actions (`permission.asked/reply`) pause for a VS Code confirmation (once / client-side always-for-session auto-`once` / cancel) with default-deny on timeout, dismiss, disconnect, or cancellation; the bridge never sends `always` and never propagates VS Code Allow-all.
 
 ## 3. Security Skill Routing
 

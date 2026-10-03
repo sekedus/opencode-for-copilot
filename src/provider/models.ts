@@ -58,7 +58,8 @@ function toOctModel(info: ModelInfo): OctModel | undefined {
     maxInputTokens: maxInput,
     maxOutputTokens: maxOutput,
     // Picker lists only models with toolCalling=true for agent chat.
-    // MVP still answers text-only; tool definitions get a notice (see octProvider).
+    // Tools execute via the bridge (see octProvider); definitions without
+    // a bridge get a notice.
     capabilities: { toolCalling: true, imageInput: false },
     isUserSelectable: true,
     providerID: info.providerID,

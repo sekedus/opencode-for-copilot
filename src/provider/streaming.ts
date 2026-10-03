@@ -127,7 +127,7 @@ function isTerminalFor(event: WireEvent, sessionId: string): boolean {
   }
 }
 
-/** Per-turn collaborators for the tool bridge (absent = text-only behavior). */
+/** Per-turn collaborators for the tool bridge (absent = text-only fallback). */
 export interface TurnHooks {
   shuttle?: ToolShuttle;
   translator?: PermissionTranslator;

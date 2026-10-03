@@ -1,6 +1,6 @@
 # ADR-0001 — OCT Bridge via Copilot `LanguageModelChatProvider` + Managed Opencode v2 Server
 
-- Status: ACCEPTED
+- Status: ACCEPTED (partially superseded by M2 — see Addendum 2026-10-02)
 - Date: 2026-09-29
 
 ## Context
@@ -46,3 +46,13 @@ The bridge must avoid per-turn session sprawl, must not run the engine unless ex
 ## Revisit Condition
 
 Revisit when: VS Code stabilizes/renames the chat-provider API; opencode v2 adds a native chat-completions endpoint; or tool passthrough is scoped (then revisit consequence #2).
+
+## M2 Addendum (2026-10-02) — Tool Bridge Shipped (T-0006), No Reaper (T-0007)
+
+Decision 3 (background reaper) and Decision 4 / Consequences (negative / follow-ups) above describe the M1 text-only state and are superseded:
+
+- `capabilities.toolCalling=true`; Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop (`T-0006`, verified 2026-10-02).
+- Engine-native actions (`permission.asked`) pause the turn with a VS Code confirmation (once / always-for-session / cancel) and default-deny on timeout, dismiss, disconnect, or cancellation.
+- Text-only fallback remains only when the bridge is unavailable (external mode without the plugin) and for non-text content (image-producing tools return a placeholder — multimodal deferred).
+- No background reaper: sessions are never deleted on the hot path; dead entries are pruned via `OCT: Show Status` (`T-0007`).
+- The Revisit Condition's "tool passthrough is scoped" trigger is met and closed by T-0006.

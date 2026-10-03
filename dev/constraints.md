@@ -32,5 +32,5 @@ Use this file for constraints that materially affect technical decisions.
 
 ## Deployment Constraints
 
-- Local VSIX install first (`vsce package`); marketplace publish is out of MVP scope.
+- Local VSIX install first (`vsce package`); marketplace publish is out of scope.
 - Git Bash is the default VS Code terminal on this machine; document shell-specific commands when they matter. Avast TLS interception: prefer normal cert verification; `curl --ssl-no-revoke` only when revocation checks fail (never `-k`).

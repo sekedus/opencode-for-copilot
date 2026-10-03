@@ -1,7 +1,7 @@
 {
   "name": "opencode-for-copilot",
   "displayName": "Opencode Terminal for VS Code Copilot",
-  "description": "Bridge a local opencode v2 server into VS Code Copilot Chat as provider OCT. Opt-in; 1 conversation = 1 opencode session; text-only MVP.",
+  "description": "Bridge a local opencode v2 server into VS Code Copilot Chat as provider OCT. Opt-in; 1 conversation = 1 opencode session; Copilot tool bridge with approval confirmations.",
   "version": "0.1.0",
   "publisher": "oct",
   "license": "MIT",

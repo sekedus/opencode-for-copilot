@@ -16,12 +16,13 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 - Opencode binary check (`opencode --version`, v2 only) at enable time.
 - Managed `opencode serve` lifecycle (spawn, health via `GET /api/info`, stop) + explicit external-URL override.
 - `languageModelChatProviders` vendor `oct` with model list from `GET /api/model`.
-- Text-only chat streaming with persistent 1 Copilot conversation = 1 opencode session mapping (no per-turn create/delete).
+- Chat streaming with persistent 1 Copilot conversation = 1 opencode session mapping (no per-turn create/delete).
+- Copilot tool bridge (M2): Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop; engine-native actions surface as VS Code approvals with default-deny. Text-only fallback only when the bridge is unavailable (external mode without the plugin); image/data tool results serialize to text placeholders (multimodal deferred).
 - Status command + output-channel diagnostics.
 
 ## Out of Scope
 
-- Copilot tool-call passthrough to opencode tools (follow-up task after text MVP).
+- Image/multimodal tool results (text placeholders only; multimodal deferred).
 - VSCodium support (target is VS Code 1.125+ where `chatProvider` API exists).
 - PTY terminal features, OpenChamber webview parity, Zen/Go direct auth.
 - Marketplace release automation (local VSIX first).
@@ -31,14 +32,14 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 - Language(s): TypeScript (strict)
 - Framework(s): VS Code Extension API (`lm.registerLanguageModelChatProvider`); opencode v2 REST + SSE (`/api/session`, `/api/model`, `/api/event`)
 - Runtime: Node 20+ (extension host); opencode v2.0.x (verified against 2.0.21)
-- Database: none (in-memory conversation-id map + opencode server state)
+- State: conversation→session map persisted in `vscode.Memento` globalState (`oct.conversationSessions.v1`, LRU 50, 404-remap on restore) + opencode server state; no separate DB.
 - Build tools: TypeScript `tsc`, esbuild (planned), `vsce` packaging
 - Test tools: `node:test` (built-in, zero new deps) for session-map + message-convert units; EDH regression cases committed (`test/`, `npm test`).
 
 ## Project Constraints
 
 - OCT disabled by default; background server only runs after explicit enable + reload.
-- Text-only MVP: `capabilities.toolCalling=false` until tool bridge is designed.
+- `capabilities.toolCalling=true` (tool bridge via `oct-tools` plugin + shuttle loop, T-0006); text-only fallback only when the bridge is unavailable.
 - opencode v2 only; v1 proxy protocol is not supported.
 
 ## Success Criteria
@@ -50,4 +51,4 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 
 ## Discovery Status
 
-COMPLETE (2026-09-29). Decisions: VS Code 1.125+, managed+external server, 1:1 session map, text-only MVP.
+COMPLETE (2026-09-29). Decisions: VS Code 1.125+, managed+external server, 1:1 session map. M1 shipped text-only; M2 (2026-10-02) added the Copilot tool bridge + approvals.

@@ -13,7 +13,7 @@ import { messageText } from "./messages";
  *   provider options when supplied, else a hash of
  *   (workspace + model + first message).
  * - LRU cap 50: evicting a key only forgets the mapping — sessions are never
- *   deleted on the hot path (background reaper only, out of MVP scope).
+ *   deleted on the hot path (dead entries are pruned via the status command).
  * - One in-flight `getOrCreate` per key: concurrent turns share the promise.
  * - Persistence: entries are saved to globalState on every mutation and
  *   reloaded on construction. A restored entry is verified with

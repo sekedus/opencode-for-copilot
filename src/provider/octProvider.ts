@@ -30,7 +30,7 @@ export interface OctProviderDeps {
 }
 
 const TOOL_NOTICE =
-  "Note: this request included tool definitions, which the OCT text-only MVP does not execute. Answering with text only.";
+  "Note: this request included tool definitions, but the OCT tool bridge is unavailable (external mode without the plugin). Answering with text only.";
 
 function estimateTokens(text: string): number {
   if (!text) {

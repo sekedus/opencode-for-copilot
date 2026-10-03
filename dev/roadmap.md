@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging.
+M2 — COMPLETE (2026-10-02): tool-call bridge, session title/sync, tests, VSIX packaging.
 
 ## Tasks
 
@@ -21,7 +21,7 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 
 ## Future Milestones
 
-- M2 — Tool-call bridge, session title/sync, tests, VSIX packaging.
+- None defined — post-M2 scope undecided (standing OPEN: EDH redo with image workspace + Steps 3–8).
 
 ## Roadmap Rules
 

@@ -9,25 +9,25 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0009 COMPLETE — M2 done; B-0003/B-0004/B-0005 verified; commit 3ccd84f + uncommitted T-0009 work; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0009 COMPLETE — M2 done and committed through 13638c3; B-0003/B-0004/B-0005 verified; uncommitted stale-docs sweep only; roadmap + tasks agree)
 
 ## Current Milestone
 
-M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging.
+M2 — COMPLETE (2026-10-02): tool-call bridge, session title/sync, tests, VSIX packaging.
 
 ## Current Task
 
-None — T-0009 COMPLETE (verified 2026-10-02: artifact + install proof), commit pending. M2 is done.
+None — M2 COMPLETE (all tasks T-0001..T-0009 done and committed). No active task.
 
 ## Current Step
 
-T-0008 committed (3ccd84f, 2026-10-02). T-0009 COMPLETE 2026-10-02 (install verified by user; M2 done: tool bridge, titles/sync, tests, VSIX).
-Next: commit checkpoint (policy: ask). Standing OPEN: EDH redo (image workspace) + Steps 3–8.
+T-0008 committed (3ccd84f, 2026-10-02). M2 CLOSED 2026-10-02 (T-0009 committed 13638c3; all M2 items complete).
+Standing OPEN: EDH redo (image workspace) + Steps 3–8. No active task.
 OPEN: EDH redo (image workspace) + Steps 3–8.
 
 ## Objective
 
-Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Copilot Chat as provider "OCT", with opt-in gate, managed server, and 1 conversation = 1 session reuse (text-only MVP).
+Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Copilot Chat as provider "OCT", with opt-in gate, managed server, 1 conversation = 1 session reuse, and the M2 tool bridge (Copilot tools via plugin + shuttle; engine approvals with default-deny).
 
 ## Last Completed
 
@@ -50,11 +50,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_RECONCILED_POST_T-0007_COMMIT
+STATE_M2_CLOSED
 
 ## Next Action
 
-Scope remaining M2 (tests + VSIX packaging) as bounded tasks, or run the EDH redo (image workspace).
+No active task. Next work needs a scoped task (post-M2 scope undecided) or the standing EDH redo.
 
 ## Current Blocker
 
@@ -73,9 +73,9 @@ None.
 - `src/provider/sessions.ts` (T-0007: title derivation + prune helper)
 - `src/extension.ts` (T-0007: status list)
 - `src/provider/octProvider.ts` (T-0007: title seed + map accessors)
-- `plugin/oct-tools/index.js` (new: bundled bridge plugin)
-- `src/provider/tools.ts` (new: shuttle + callback server)
-- `src/provider/permissions.ts` (new: approval translator)
+- `plugin/oct-tools/index.js` (bundled bridge plugin)
+- `src/provider/tools.ts` (shuttle + callback server)
+- `src/provider/permissions.ts` (approval translator)
 - `docs/adr/0001-oct-bridge-architecture.md`
 - `dev/project.md`
 - `dev/constraints.md`
@@ -87,7 +87,7 @@ None.
 
 ## Verification
 
-Status: VERIFIED (T-0006..T-0009 complete 2026-10-02, M2 done; T-0009 commit pending)
+Status: VERIFIED (T-0006..T-0009 complete 2026-10-02, M2 done; committed 13638c3)
 
 Evidence:
 
@@ -111,7 +111,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`3ccd84f test: add node:test harness with session and message units` (T-0008 complete + verified). Worktree clean at commit time.
+`13638c3 chore: package local VSIX artifact` (T-0009 complete + verified, M2 done). Worktree clean at commit time.
 
 ## README Status
 
@@ -127,9 +127,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0009 COMPLETE 2026-10-02 (install verified by user; M2 done).
-Uncommitted work awaits checkpoint decision.
+M2 CLOSED 2026-10-02 (milestone bookkeeping; uncommitted).
 
 ## Resume Instruction
 
-Read this file first. T-0009 is COMPLETE (commit pending); M2 is done. Standing OPEN: EDH redo (image workspace) + Steps 3–8.
+Read this file first. M2 is CLOSED (all tasks committed). No active task — next work needs scoping.

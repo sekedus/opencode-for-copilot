@@ -18,6 +18,7 @@ M2 — COMPLETE (2026-10-02): tool-call bridge, session title/sync, tests, VSIX 
 - `T-0007` — Session title and sync — COMPLETE (verified 2026-10-02: derived engine titles + status list with prune; unique `OCT: <key8> <MM-DD HH:mm>` fallback; no reaper).
 - `T-0008` — Unit tests (harness + pure-logic coverage) — COMPLETE (verified 2026-10-02: `npm test` 32/32 green, zero new deps).
 - `T-0009` — VSIX packaging (local install artifact) — COMPLETE (verified 2026-10-02: 18-file artifact + user-run install proof).
+- `T-0010` — Extension logo, icon & LICENSE — COMPLETE (verified 2026-10-03: `assets/` art + manifest `icon` + MIT `LICENSE`; `tsc` 0, package 21 files / 59.01 KB, `vsce` warning gone).
 
 ## Future Milestones
 

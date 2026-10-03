@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0009 COMPLETE — M2 done and committed through 13638c3; B-0003/B-0004/B-0005 verified; uncommitted stale-docs sweep only; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0010 COMPLETE — M2 done; stale-docs sweep committed b5afd3e; B-0003/B-0004/B-0005 verified; T-0010 verified-uncommitted; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -31,6 +31,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
+- T-0010 COMPLETE (20261003): logo/icon/LICENSE (`assets/` art + manifest `icon` + MIT `LICENSE`; `tsc` 0, package 21 files / 59.01 KB). Uncommitted.
 - T-0009 COMPLETE (20261002): local VSIX (`@vscode/vsce@4.0.0`, 18 files, 48.51 KB, contents-gated) + user-run install proof. M2 COMPLETE.
 - T-0008 COMPLETE (20261002): zero-dep `node:test` harness (`vscode` mock + NODE_PATH shim + runner) with 32 session/message units incl. EDH regressions; main build untouched.
 - T-0007 COMPLETE (20261002): derived engine titles (`<userRequest>` unwrap, attachment stripping) + unique `OCT: <key8> <MM-DD HH:mm>` fallback + status list with prune; EDH attempts 1–3 (#1/#2/#3/#4/#5 PASS).
@@ -111,11 +112,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`13638c3 chore: package local VSIX artifact` (T-0009 complete + verified, M2 done). Worktree clean at commit time.
+`b5afd3e docs: refresh stale M1 text-only references for M2 tool bridge` (stale-docs sweep: text-only, security §2, DB line, ADR reaper, now.md checkpoint). Worktree clean at commit time.
 
 ## README Status
 
-CURRENT — session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
+CURRENT — license section added at bottom (T-0010, 2026-10-03) + session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
 
 ## Important Context
 
@@ -127,7 +128,7 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-M2 CLOSED 2026-10-02 (milestone bookkeeping; uncommitted).
+Stale-docs sweep committed b5afd3e (2026-10-03). T-0010 logo/icon/LICENSE complete + verified, uncommitted. No active task.
 
 ## Resume Instruction
 

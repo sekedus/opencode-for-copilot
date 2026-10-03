@@ -1,4 +1,4 @@
-# opencode-for-copilot
+# Opencode Terminal for VS Code Copilot
 
 VS Code extension bridging a local opencode terminal v2 server into native VS Code Copilot Chat as provider **OCT**.
 
@@ -65,3 +65,7 @@ Engine-native actions (edit/write/shell under the engine's ask policy) pause the
 - [OpenChamber](https://github.com/anomalyco/openchamber?tab=readme-ov-file#readme)
 - [OpenCode for GitHub Copilot Chat](https://github.com/ltmoerdani/opencode-copilot-chat?tab=readme-ov-file#readme)
 - [opencode-llm-proxy](https://github.com/KochC/opencode-llm-proxy?tab=readme-ov-file#readme)
+
+## License
+
+MIT — see [LICENSE](LICENSE).

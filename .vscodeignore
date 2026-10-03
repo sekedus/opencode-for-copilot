@@ -1,11 +1,18 @@
 # VS Code ignores dotfiles and dev-only files in the packaged VSIX.
 .vscode/**
 .git/**
+.github/**
 dev/**
 docs/**
 wiki/**
+test/**
+out-test/**
 AGENTS.md
 CONTEXT.md
+.gitignore
+.vscodeignore
+package-lock.json
+tsconfig.json
+*.vsix
 out/**/*.map
 src/**
-tsconfig.json

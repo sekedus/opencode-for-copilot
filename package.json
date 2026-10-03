@@ -1,6 +1,6 @@
 {
   "name": "opencode-for-copilot",
-  "displayName": "OCT: Opencode Engine for Copilot Chat",
+  "displayName": "Opencode Terminal for VS Code Copilot",
   "description": "Bridge a local opencode v2 server into VS Code Copilot Chat as provider OCT. Opt-in; 1 conversation = 1 opencode session; text-only MVP.",
   "version": "0.1.0",
   "publisher": "oct",
@@ -99,11 +99,13 @@
     "watch": "tsc -watch -p ./",
     "check": "tsc --noEmit -p ./",
     "compile-tests": "tsc -p ./test/tsconfig.tests.json",
-    "test": "npm run compile-tests && node ./test/run.mjs"
+    "test": "npm run compile-tests && node ./test/run.mjs",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.125.0",
+    "@vscode/vsce": "^4.0.0",
     "typescript": "^5.5.0"
   }
 }

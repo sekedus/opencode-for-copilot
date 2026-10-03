@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0008 COMPLETE; B-0003/B-0004/B-0005 verified; commit d2a1bbf + uncommitted T-0008 work; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0009 COMPLETE — M2 done; B-0003/B-0004/B-0005 verified; commit 3ccd84f + uncommitted T-0009 work; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,12 +17,12 @@ M2 — Tool-call bridge (spike first), session title/sync, tests, VSIX packaging
 
 ## Current Task
 
-None — T-0008 COMPLETE (verified 2026-10-02: `npm test` 32/32), commit pending. Next M2: VSIX packaging (unscoped).
+None — T-0009 COMPLETE (verified 2026-10-02: artifact + install proof), commit pending. M2 is done.
 
 ## Current Step
 
-T-0008 COMPLETE 2026-10-02 (`npm test` 32/32 green, zero new deps; EDH regressions committed as units).
-Next: commit checkpoint (policy: ask), then VSIX packaging.
+T-0008 committed (3ccd84f, 2026-10-02). T-0009 COMPLETE 2026-10-02 (install verified by user; M2 done: tool bridge, titles/sync, tests, VSIX).
+Next: commit checkpoint (policy: ask). Standing OPEN: EDH redo (image workspace) + Steps 3–8.
 OPEN: EDH redo (image workspace) + Steps 3–8.
 
 ## Objective
@@ -31,6 +31,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
+- T-0009 COMPLETE (20261002): local VSIX (`@vscode/vsce@4.0.0`, 18 files, 48.51 KB, contents-gated) + user-run install proof. M2 COMPLETE.
 - T-0008 COMPLETE (20261002): zero-dep `node:test` harness (`vscode` mock + NODE_PATH shim + runner) with 32 session/message units incl. EDH regressions; main build untouched.
 - T-0007 COMPLETE (20261002): derived engine titles (`<userRequest>` unwrap, attachment stripping) + unique `OCT: <key8> <MM-DD HH:mm>` fallback + status list with prune; EDH attempts 1–3 (#1/#2/#3/#4/#5 PASS).
 
@@ -86,7 +87,7 @@ None.
 
 ## Verification
 
-Status: VERIFIED (T-0006..T-0008 complete 2026-10-02; T-0008 commit pending)
+Status: VERIFIED (T-0006..T-0009 complete 2026-10-02, M2 done; T-0009 commit pending)
 
 Evidence:
 
@@ -110,7 +111,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`d2a1bbf feat: derive engine session titles and list synced sessions` (T-0007 complete + verified). Worktree clean at commit time.
+`3ccd84f test: add node:test harness with session and message units` (T-0008 complete + verified). Worktree clean at commit time.
 
 ## README Status
 
@@ -126,9 +127,9 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0008 COMPLETE 2026-10-02 (`npm test` 32/32 green, zero new deps).
+T-0009 COMPLETE 2026-10-02 (install verified by user; M2 done).
 Uncommitted work awaits checkpoint decision.
 
 ## Resume Instruction
 
-Read this file first. T-0008 is COMPLETE (commit pending); remaining M2 is VSIX packaging (unscoped).
+Read this file first. T-0009 is COMPLETE (commit pending); M2 is done. Standing OPEN: EDH redo (image workspace) + Steps 3–8.

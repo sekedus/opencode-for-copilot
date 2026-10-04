@@ -20,6 +20,8 @@ export interface OctSettings {
    * a fresh token every reload. Loopback-only secret — never logged.
    */
   callbackToken: string;
+  /** Max mapped conversations (session map cap, LRU). */
+  maxSessions: number;
 }
 
 function getConfig(): vscode.WorkspaceConfiguration {
@@ -27,6 +29,8 @@ function getConfig(): vscode.WorkspaceConfiguration {
 }
 
 const DEFAULT_PERMISSION_TIMEOUT_MS = 60_000;
+/** Default conversation→session map cap (overridden by `oct.maxSessions`). */
+export const DEFAULT_MAX_SESSIONS = 50;
 
 export function readSettings(): OctSettings {
   const cfg = getConfig();
@@ -35,6 +39,11 @@ export function readSettings(): OctSettings {
     typeof rawTimeout === "number" && Number.isFinite(rawTimeout) && rawTimeout > 0
       ? Math.floor(rawTimeout)
       : DEFAULT_PERMISSION_TIMEOUT_MS;
+  const rawMax = cfg.get<number>("maxSessions", DEFAULT_MAX_SESSIONS) ?? DEFAULT_MAX_SESSIONS;
+  const maxSessions =
+    typeof rawMax === "number" && Number.isFinite(rawMax) && rawMax >= 1
+      ? Math.floor(rawMax)
+      : DEFAULT_MAX_SESSIONS;
   return {
     enabled: cfg.get<boolean>("enabled", false),
     opencodeUrl: (cfg.get<string>("opencodeUrl", "") ?? "").trim(),
@@ -42,6 +51,7 @@ export function readSettings(): OctSettings {
     opencodePassword: cfg.get<string>("opencodePassword", "") ?? "",
     permissionTimeoutMs,
     callbackToken: cfg.get<string>("callbackToken", "") ?? "",
+    maxSessions,
   };
 }
 

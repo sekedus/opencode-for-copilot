@@ -38,7 +38,7 @@ Press `F5` for the Extension Development Host, then run `OCT: Enable Opencode En
 
 Or install the packaged artifact: `npm run package`, then `code --install-extension opencode-for-copilot-0.1.0.vsix`.
 
-Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`), `oct.permissionTimeoutMs` (approval no-answer timeout, default 60000), `oct.callbackToken` (stable callback token for external servers; empty = per-window random).
+Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`), `oct.permissionTimeoutMs` (approval no-answer timeout, default 60000), `oct.callbackToken` (stable callback token for external servers; empty = per-window random), `oct.maxSessions` (mapped-conversation cap, default 50).
 
 ## Tool bridge
 

@@ -27,6 +27,8 @@ export interface OctProviderDeps {
   permissionTimeoutMs: number;
   /** Managed mode installs the bridge plugin itself; external mode needs it manually. */
   managed: boolean;
+  /** Conversation→session map cap (`oct.maxSessions`). */
+  maxSessions: number;
 }
 
 const TOOL_NOTICE =
@@ -46,7 +48,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
   private modelsCache: OctModel[] = [];
 
   constructor(private readonly deps: OctProviderDeps) {
-    this.sessions = new OctSessionMap(deps.sessionStore);
+    this.sessions = new OctSessionMap(deps.sessionStore, deps.maxSessions);
   }
 
   /** Force VS Code to re-query the model list. */

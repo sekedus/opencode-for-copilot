@@ -12,8 +12,9 @@ import { messageText } from "./messages";
  *   (stable across turns, distinct across chats), else an explicit id from
  *   provider options when supplied, else a hash of
  *   (workspace + model + first message).
- * - LRU cap 50: evicting a key only forgets the mapping — sessions are never
- *   deleted on the hot path (dead entries are pruned via the status command).
+ * - LRU cap (`oct.maxSessions`, default 50): evicting a key only forgets
+ *   the mapping — sessions are never deleted on the hot path (dead entries
+ *   are pruned via the status command).
  * - One in-flight `getOrCreate` per key: concurrent turns share the promise.
  * - Persistence: entries are saved to globalState on every mutation and
  *   reloaded on construction. A restored entry is verified with
@@ -22,7 +23,8 @@ import { messageText } from "./messages";
  *   the turn. `clear()` only drops in-memory state so reloads keep reuse.
  */
 
-const MAX_ENTRIES = 50;
+/** Default map cap; `oct.maxSessions` overrides it per `OctSessionMap` instance. */
+export const DEFAULT_MAX_SESSIONS = 50;
 const STORAGE_KEY = "oct.conversationSessions.v1";
 
 export interface SessionDeps {
@@ -191,10 +193,16 @@ export function conversationKey(
 export class OctSessionMap {
   private readonly entries = new Map<string, Entry>();
   private readonly inflight = new Map<string, Promise<string>>();
+  /** Configured conversation→session cap (LRU). */
+  private readonly maxEntries: number;
   /** Keys restored from storage whose session existence is not yet verified. */
   private readonly unverified = new Set<string>();
 
-  constructor(private readonly store?: vscode.Memento) {
+  constructor(private readonly store?: vscode.Memento, maxEntries: number = DEFAULT_MAX_SESSIONS) {
+    this.maxEntries =
+      typeof maxEntries === "number" && Number.isFinite(maxEntries) && maxEntries >= 1
+        ? Math.floor(maxEntries)
+        : DEFAULT_MAX_SESSIONS;
     this.restore();
   }
 
@@ -257,7 +265,7 @@ export class OctSessionMap {
         if (typeof sessionId !== "string" || !sessionId || typeof modelKey !== "string" || !modelKey) {
           continue;
         }
-        if (this.entries.size >= MAX_ENTRIES) {
+        if (this.entries.size >= this.maxEntries) {
           break;
         }
         this.entries.set(key, { sessionId, modelKey });
@@ -448,14 +456,14 @@ export class OctSessionMap {
     });
     const entry: Entry = { sessionId: info.id, modelKey: model.pickerId };
     this.entries.set(key, entry);
-    while (this.entries.size > MAX_ENTRIES) {
+    while (this.entries.size > this.maxEntries) {
       const oldest = this.entries.keys().next().value as string | undefined;
       if (!oldest) {
         break;
       }
       this.entries.delete(oldest);
       this.unverified.delete(oldest);
-      logLine(`Session map evicted oldest conversation (cap ${MAX_ENTRIES}).`);
+      logLine(`Session map evicted oldest conversation (cap ${this.maxEntries}).`);
     }
     this.persist();
     logLine(`Conversation ${key} mapped to session ${info.id} (${model.pickerId}).`);

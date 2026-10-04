@@ -239,6 +239,7 @@ export function activate(context: vscode.ExtensionContext): void {
           translator,
           permissionTimeoutMs: settings.permissionTimeoutMs,
           managed: state.mode === "managed",
+          maxSessions: settings.maxSessions,
         });
         const provider = chatProvider;
         context.subscriptions.push(

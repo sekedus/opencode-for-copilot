@@ -81,6 +81,12 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Stable token for the tool-bridge callback (external-mode servers only). Empty = a random per-window token (managed mode). Set this when you manually install the bridge plugin on an external server, and export the same value as OCT_CALLBACK_TOKEN there. Requires a window reload after changing."
+        },
+        "oct.maxSessions": {
+          "type": "integer",
+          "default": 50,
+          "minimum": 1,
+          "markdownDescription": "Maximum Copilot conversations mapped to opencode sessions (oldest mappings evicted first). Requires a window reload after changing."
         }
       }
     },

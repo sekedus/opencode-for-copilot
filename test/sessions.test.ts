@@ -183,6 +183,30 @@ describe("OctSessionMap", () => {
     assert.equal(map.size(), 50);
   });
 
+  it("honors a custom cap from oct.maxSessions", () => {
+    const stored: Array<[string, { sessionId: string; modelKey: string }]> = Array.from(
+      { length: 5 },
+      (_, i) => [`conv:${i}`, { sessionId: `ses_${i}`, modelKey: "m1" }] as [string, { sessionId: string; modelKey: string }],
+    );
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }), 3);
+    assert.equal(map.size(), 3);
+    assert.equal(map.peek("conv:0"), "ses_0");
+    assert.equal(map.peek("conv:1"), "ses_1");
+    assert.equal(map.peek("conv:2"), "ses_2");
+    assert.equal(map.peek("conv:3"), undefined);
+  });
+
+  it("falls back to 50 on invalid caps", () => {
+    const stored: Array<[string, { sessionId: string; modelKey: string }]> = Array.from(
+      { length: 60 },
+      (_, i) => [`conv:${i}`, { sessionId: `ses_${i}`, modelKey: "m1" }] as [string, { sessionId: string; modelKey: string }],
+    );
+    for (const bad of [0, -1, Number.NaN]) {
+      const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }), bad);
+      assert.equal(map.size(), 50);
+    }
+  });
+
   it("pruneBySessionIds drops only dead entries and logs", () => {
     const stored: Array<[string, { sessionId: string; modelKey: string }]> = [
       ["conv:a", { sessionId: "ses_aaa", modelKey: "m1" }],

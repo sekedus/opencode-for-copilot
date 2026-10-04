@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 import {
   OctSessionMap,
   conversationKey,
+  DELETED_SESSION_MESSAGE,
   deriveSessionTitle,
   extractUserPromptText,
   fallbackSessionTitle,
@@ -254,5 +255,45 @@ describe("isSessionGoneError", () => {
     assert.equal(isSessionGoneError(new Error("socket hang up")), false);
     assert.equal(isSessionGoneError("404"), false);
     assert.equal(isSessionGoneError(undefined), false);
+  });
+});
+
+describe("DELETED_SESSION_MESSAGE", () => {
+  it("is one clear sentence telling the user to start a new chat", () => {
+    assert.ok(!DELETED_SESSION_MESSAGE.includes("\n"), "single line");
+    assert.ok(DELETED_SESSION_MESSAGE.startsWith("OCT:"), "branded prefix");
+    assert.ok(DELETED_SESSION_MESSAGE.includes("deleted"), "states the cause");
+    assert.ok(DELETED_SESSION_MESSAGE.includes("new Copilot chat"), "states the remedy");
+    assert.ok(!DELETED_SESSION_MESSAGE.includes("try again"), "no retry advice — retrying can never work");
+    assert.ok(!/HTTP \d+/.test(DELETED_SESSION_MESSAGE), "no error dump");
+  });
+});
+
+describe("dead conversations", () => {
+  it("markDead/isDead sticks and forget does not un-dead", () => {
+    const map = new OctSessionMap(fakeStore({}));
+    assert.equal(map.isDead("conv:a"), false);
+    map.markDead("conv:a");
+    assert.equal(map.isDead("conv:a"), true);
+    map.forget("conv:a");
+    assert.equal(map.isDead("conv:a"), true);
+  });
+
+  it("dead keys persist across restore and respect the cap", () => {
+    const store = fakeStore({});
+    const first = new OctSessionMap(store, 2);
+    first.markDead("conv:a");
+    first.markDead("conv:b");
+    first.markDead("conv:c");
+    const second = new OctSessionMap(store, 2);
+    assert.equal(second.isDead("conv:a"), false);
+    assert.equal(second.isDead("conv:b"), true);
+    assert.equal(second.isDead("conv:c"), true);
+  });
+
+  it("ignores garbage dead rows", () => {
+    const map = new OctSessionMap(fakeStore({ "oct.deadConversations.v1": ["conv:a", 42, "", null] }));
+    assert.equal(map.isDead("conv:a"), true);
+    assert.equal(map.isDead("42"), false);
   });
 });

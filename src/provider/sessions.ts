@@ -26,6 +26,10 @@ import { messageText } from "./messages";
 /** Default map cap; `oct.maxSessions` overrides it per `OctSessionMap` instance. */
 export const DEFAULT_MAX_SESSIONS = 50;
 const STORAGE_KEY = "oct.conversationSessions.v1";
+/** Persisted set of conversation keys whose engine session was deleted
+ *  mid-chat (T-0013 follow-up): later turns repeat the notice instead of
+ *  silently opening an amnesiac session. */
+const DEAD_KEY = "oct.deadConversations.v1";
 
 /**
  * True when a server error means the session is gone (HTTP 404), as opposed
@@ -36,6 +40,14 @@ const STORAGE_KEY = "oct.conversationSessions.v1";
 export function isSessionGoneError(error: unknown): boolean {
   return error instanceof OctHttpError && error.status === 404;
 }
+
+/**
+ * Single user-facing sentence for a mid-conversation deleted session
+ * (T-0013): the mapping is dropped and the user starts a new Copilot chat.
+ * No silent recreate, no history replay, no error dump.
+ */
+export const DELETED_SESSION_MESSAGE =
+  "OCT: the opencode session for this chat was deleted — start a new Copilot chat.";
 
 export interface SessionDeps {
   baseUrl: string;
@@ -207,6 +219,8 @@ export class OctSessionMap {
   private readonly maxEntries: number;
   /** Keys restored from storage whose session existence is not yet verified. */
   private readonly unverified = new Set<string>();
+  /** Conversations whose engine session was deleted mid-chat (persisted). */
+  private readonly dead = new Set<string>();
 
   constructor(private readonly store?: vscode.Memento, maxEntries: number = DEFAULT_MAX_SESSIONS) {
     this.maxEntries =
@@ -214,6 +228,7 @@ export class OctSessionMap {
         ? Math.floor(maxEntries)
         : DEFAULT_MAX_SESSIONS;
     this.restore();
+    this.restoreDead();
   }
 
   size(): number {
@@ -244,6 +259,67 @@ export class OctSessionMap {
       this.unverified.delete(key);
       this.persist();
       logLine(`Conversation ${key} mapping dropped; the next turn will create a fresh session.`);
+    }
+  }
+
+  /**
+   * Mark a conversation permanently dead: its engine session was deleted
+   * mid-chat, so later turns must repeat the start-a-new-chat notice instead
+   * of silently opening an amnesiac session (T-0013 follow-up). Persisted
+   * across reloads; bounded by the map cap. `forget` does not un-dead.
+   */
+  markDead(key: string): void {
+    if (!key || this.dead.has(key)) {
+      return;
+    }
+    this.dead.add(key);
+    while (this.dead.size > this.maxEntries) {
+      const oldest = this.dead.values().next().value as string | undefined;
+      if (!oldest) {
+        break;
+      }
+      this.dead.delete(oldest);
+    }
+    this.persistDead();
+    logLine(`Conversation ${key} marked dead (engine session deleted); later turns will repeat the start-a-new-chat notice.`);
+  }
+
+  /** True when the conversation's engine session was deleted mid-chat. */
+  isDead(key: string): boolean {
+    return this.dead.has(key);
+  }
+
+  /** Load persisted dead-conversation keys (tolerates missing/garbage). */
+  private restoreDead(): void {
+    if (!this.store) {
+      return;
+    }
+    try {
+      const raw: unknown = this.store.get(DEAD_KEY);
+      if (!Array.isArray(raw)) {
+        return;
+      }
+      for (const item of raw) {
+        if (typeof item === "string" && item && this.dead.size < this.maxEntries) {
+          this.dead.add(item);
+        }
+      }
+    } catch (error) {
+      logLine(`Dead-conversation restore failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Best-effort persist of the dead-conversation keys (fire-and-forget). */
+  private persistDead(): void {
+    if (!this.store) {
+      return;
+    }
+    try {
+      void Promise.resolve(this.store.update(DEAD_KEY, [...this.dead])).catch((error: unknown) => {
+        logLine(`Dead-conversation persist failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    } catch (error) {
+      logLine(`Dead-conversation persist failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

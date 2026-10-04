@@ -9,6 +9,7 @@ import {
 } from "../server/client";
 import { logLine } from "../output";
 import { parsePermissionAsked, type PermissionTranslator } from "./permissions";
+import { isSessionGoneError } from "./sessions";
 import { type BlockedCall, type ToolShuttle } from "./tools";
 
 /**
@@ -223,6 +224,9 @@ export async function streamTurn(
   let cancelRequested = false;
   let timedOut = false;
   let admissionFailed = false;
+  /** Raw admission error: a gone session must surface typed (T-0013) so the
+   *  provider can map it to the start-a-new-chat sentence. */
+  let admissionError: unknown;
   const onCancel = () => {
     cancelRequested = true;
     controller.abort();
@@ -244,6 +248,8 @@ export async function streamTurn(
    *  throwing engine internals (and our stack) into the chat. */
   let deniedThisTurn = false;
   let promptPromise: Promise<unknown> = Promise.resolve();
+  /** True while the prompt admission is still in flight (continuations skip it). */
+  let promptFlight = promptText !== null;
   let toolSignal: { promise: Promise<BlockedCall[]>; cancel: () => void } | null = null;
   const emitted = new Set<string>();
   /**
@@ -261,6 +267,9 @@ export async function streamTurn(
   const pauseForTools = async (calls: BlockedCall[]): Promise<TurnOutcome> => {
     await promptPromise;
     if (admissionFailed) {
+      if (isSessionGoneError(admissionError)) {
+        throw admissionError;
+      }
       throw new Error(`OCT: ${turnError ?? "prompt failed"}`);
     }
     breakParagraph();
@@ -285,6 +294,7 @@ export async function streamTurn(
         // authoritative — no terminal event will follow, so mark the turn and
         // let the stream loop exit instead of hanging until the turn timeout.
         admissionFailed = true;
+        admissionError = error;
         turnError = error instanceof Error ? error.message : String(error);
       });
     }
@@ -312,15 +322,21 @@ export async function streamTurn(
       }
       type Race =
         | { t: "event"; v: IteratorResult<WireEvent> }
-        | { t: "tool"; c: BlockedCall[] };
+        | { t: "tool"; c: BlockedCall[] }
+        | { t: "prompt" };
       let winner: Race;
       try {
-        winner = toolSignal
-          ? await Promise.race([
-              nextEvent.then((v): Race => ({ t: "event", v })),
-              toolSignal.promise.then((c): Race => ({ t: "tool", c })),
-            ])
-          : { t: "event", v: await nextEvent };
+        const racers: Array<Promise<Race>> = [nextEvent.then((v): Race => ({ t: "event", v }))];
+        if (toolSignal) {
+          racers.push(toolSignal.promise.then((c): Race => ({ t: "tool", c })));
+        }
+        if (promptFlight) {
+          // A rejected prompt has no terminal event following it — without
+          // this racer the turn parks on a quiet stream until the turn
+          // timeout (EDH 2026-10-04: deleted-session turn hung, then failed).
+          racers.push(promptPromise.then((): Race => ({ t: "prompt" })));
+        }
+        winner = await Promise.race(racers);
       } catch (error) {
         if (timedOut) {
           await interruptSession(baseUrl, password, sessionId);
@@ -331,6 +347,13 @@ export async function streamTurn(
           throw new Error("OCT: request cancelled.");
         }
         throw error;
+      }
+      if (winner.t === "prompt") {
+        promptFlight = false;
+        if (admissionFailed) {
+          break;
+        }
+        continue;
       }
       if (winner.t === "tool") {
         toolSignal = null;
@@ -410,6 +433,9 @@ export async function streamTurn(
       throw new Error("OCT: turn timed out.");
     }
     if (turnError && !streamed) {
+      if (isSessionGoneError(admissionError)) {
+        throw admissionError;
+      }
       if (deniedThisTurn && /abort|interrupt|denied|reject/i.test(turnError)) {
         const notice = "The engine stopped because the request was not approved (denied, timed out, or dismissed). Nothing was applied.";
         progress.report(new vscode.LanguageModelTextPart(notice));

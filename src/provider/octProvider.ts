@@ -3,7 +3,7 @@ import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
 import { toOctModels, type OctModel } from "./models";
 import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
-import { conversationKey, OctSessionMap, sessionTitleFromMessages } from "./sessions";
+import { conversationKey, DELETED_SESSION_MESSAGE, isSessionGoneError, OctSessionMap, sessionTitleFromMessages } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
 import { mapCopilotTools, type ToolShuttle } from "./tools";
 import { type PermissionTranslator } from "./permissions";
@@ -118,6 +118,13 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     );
     const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory };
     const modelRef = { id: model.modelID, providerID: model.providerID, pickerId: model.id };
+    if (this.sessions.isDead(key)) {
+      // T-0013 follow-up: this chat's engine session was already reported
+      // deleted — repeat the notice instead of silently opening an amnesiac
+      // session, no matter how many times the user retries in this chat.
+      progress.report(new vscode.LanguageModelTextPart(DELETED_SESSION_MESSAGE));
+      return;
+    }
     const titleSeed = sessionTitleFromMessages(messages);
     const sessionId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token, titleSeed);
     const hooks = {
@@ -225,6 +232,20 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     try {
       await turn(sessionId);
     } catch (error) {
+      if (isSessionGoneError(error)) {
+        // The engine session was deleted mid-conversation: drop the mapping
+        // so nothing retries the dead id, and tell the user to start a new
+        // chat (T-0013 — no silent recreate, no history replay).
+        this.sessions.forget(key);
+        this.sessions.markDead(key);
+        this.deps.translator.forget(sessionId);
+        logLine(`Turn on ${sessionId} hit a deleted session (404); mapping dropped.`);
+        // Report as chat text (B-0005 denial precedent): throwing routes the
+        // sentence through Copilot's error UI, which renders it twice with a
+        // stack trace ("Reason: … Error: … at …").
+        progress.report(new vscode.LanguageModelTextPart(DELETED_SESSION_MESSAGE));
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       if (!isInstructionBlockedError(message)) {
         throw error;

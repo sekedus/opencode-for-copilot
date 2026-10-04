@@ -123,7 +123,7 @@ feat: add extension logo, icon, and MIT license
 Commit status:
 
 ```text
-UNCOMMITTED
+COMMITTED (ad25133)
 ```
 
 ## Handoff Notes

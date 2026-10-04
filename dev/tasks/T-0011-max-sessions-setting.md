@@ -84,5 +84,5 @@ Part of the M3 checkpoint (commit per task or batch — user decides).
 Commit status:
 
 ```text
-UNCOMMITTED
+COMMITTED (3d7ea3b)
 ```

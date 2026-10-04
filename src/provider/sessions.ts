@@ -27,6 +27,16 @@ import { messageText } from "./messages";
 export const DEFAULT_MAX_SESSIONS = 50;
 const STORAGE_KEY = "oct.conversationSessions.v1";
 
+/**
+ * True when a server error means the session is gone (HTTP 404), as opposed
+ * to an uncertain failure (network/auth/timeout) that must never trigger a
+ * prune. Shared by the startup/status sweep (T-0012) and the mid-turn
+ * recovery message (T-0013).
+ */
+export function isSessionGoneError(error: unknown): boolean {
+  return error instanceof OctHttpError && error.status === 404;
+}
+
 export interface SessionDeps {
   baseUrl: string;
   password: string;

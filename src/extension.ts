@@ -5,8 +5,9 @@ import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
-import { listSessions } from "./server/client";
+import { getSession, listSessions } from "./server/client";
 import { PermissionTranslator } from "./provider/permissions";
+import { isSessionGoneError } from "./provider/sessions";
 import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
 
@@ -133,11 +134,44 @@ function shortConversationKey(key: string): string {
 }
 
 /**
- * Append the conversation→session list to the status output. One engine
- * `GET /api/session` pass supplies titles + existence; entries missing from
- * the engine list are pruned from the persisted map (operator-initiated,
- * same remap philosophy as B-0001). No background polling: this runs only
- * on `OCT: Show Status`. Never prunes when the list call itself fails.
+ * Verify-and-prune pass shared by startup and status (T-0012).
+ *
+ * Per-id `GET /api/session/:id` per mapped conversation: exact at any
+ * engine session count (the old list-and-compare false-pruned live mappings
+ * once the engine held 100+ sessions). 404 = dead (prune); any other error
+ * (network/auth/timeout) keeps the mapping — never prune on uncertainty.
+ * Returns the pruned conversation keys.
+ */
+async function verifyAndPruneConversations(): Promise<string[]> {
+  if (!chatProvider) {
+    return [];
+  }
+  if (serverManager?.getState().status !== "connected") {
+    return [];
+  }
+  const { baseUrl, password } = chatProvider.serverTarget();
+  const deadIds = new Set<string>();
+  for (const entry of chatProvider.mappedSessions()) {
+    try {
+      await getSession(baseUrl, password, entry.sessionId);
+    } catch (error) {
+      if (isSessionGoneError(error)) {
+        deadIds.add(entry.sessionId);
+      } else {
+        logLine(`Session check failed for ${entry.sessionId} (kept): ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+  if (deadIds.size === 0) {
+    return [];
+  }
+  return chatProvider.pruneMappedSessions(deadIds);
+}
+
+/**
+ * Append the conversation→session list to the status output. Dead entries
+ * are pruned first via per-id verification; one engine `GET /api/session`
+ * pass then supplies titles for display only (never for prune decisions).
  */
 async function appendSessionList(lines: string[]): Promise<void> {
   if (!chatProvider) {
@@ -148,38 +182,32 @@ async function appendSessionList(lines: string[]): Promise<void> {
     lines.push("sessions: (server not connected — map not checked)");
     return;
   }
+  const prunedKeys = await verifyAndPruneConversations();
   const mapped = chatProvider.mappedSessions();
   if (mapped.length === 0) {
-    lines.push("sessions: 0 mapped conversation(s)");
+    lines.push(
+      prunedKeys.length > 0
+        ? `sessions: 0 mapped conversation(s) (${String(prunedKeys.length)} missing — pruned)`
+        : "sessions: 0 mapped conversation(s)",
+    );
     return;
   }
   const { baseUrl, password } = chatProvider.serverTarget();
-  let byId: Map<string, string>;
-  let engineCount = 0;
+  let byId = new Map<string, string>();
   try {
     const listed = await listSessions(baseUrl, password, { limit: 100 });
-    engineCount = listed.length;
     byId = new Map(
       listed.map((s) => [s.id, typeof s.title === "string" && s.title ? s.title : "(untitled)"]),
     );
   } catch (error) {
-    lines.push(
-      `sessions: ${String(mapped.length)} mapped conversation(s) (list failed, map unchanged: ${error instanceof Error ? error.message : String(error)})`,
-    );
-    return;
+    logLine(`Session title list failed (map unchanged): ${error instanceof Error ? error.message : String(error)}`);
   }
-  const deadEntries = mapped.filter((entry) => !byId.has(entry.sessionId));
-  if (deadEntries.length > 0) {
-    chatProvider.pruneMappedSessions(new Set(deadEntries.map((entry) => entry.sessionId)));
-  }
-  lines.push(`sessions: ${String(mapped.length)} mapped conversation(s), ${String(engineCount)} engine session(s)`);
+  lines.push(`sessions: ${String(mapped.length)} mapped conversation(s)${prunedKeys.length > 0 ? `, ${String(prunedKeys.length)} missing — pruned` : ""}`);
   for (const entry of mapped) {
-    if (byId.has(entry.sessionId)) {
-      const title = byId.get(entry.sessionId) ?? "(untitled)";
-      lines.push(`  ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title}" (found)`);
-    } else {
-      lines.push(`  ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] (missing — pruned)`);
-    }
+    const title = byId.get(entry.sessionId);
+    lines.push(
+      `  ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title ?? "(title unavailable)"}" (found)`,
+    );
   }
 }
 
@@ -247,6 +275,19 @@ export function activate(context: vscode.ExtensionContext): void {
           { dispose: () => provider.dispose() },
         );
         logLine(`Server ready at ${url}. OCT provider registered.`);
+        // T-0012: sweep stale mappings once at startup (log-only, never blocks activation).
+        void verifyAndPruneConversations().then(
+          (pruned) => {
+            logLine(
+              pruned.length > 0
+                ? `Startup session sweep: pruned ${String(pruned.length)} dead mapping(s).`
+                : "Startup session sweep: all mapped sessions alive.",
+            );
+          },
+          (error: unknown) => {
+            logLine(`Startup session sweep failed (map unchanged): ${error instanceof Error ? error.message : String(error)}`);
+          },
+        );
       } else {
         logLine(`Server not ready: ${state.lastError ?? "unknown error"}. Run 'OCT: Show Status'.`);
         vscode.window.showWarningMessage(`OCT: server not ready (${state.lastError ?? "unknown error"}).`);

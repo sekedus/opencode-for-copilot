@@ -7,9 +7,11 @@ import {
   deriveSessionTitle,
   extractUserPromptText,
   fallbackSessionTitle,
+  isSessionGoneError,
   sessionTitleFromMessages,
   DEFAULT_SESSION_TITLE,
 } from "../src/provider/sessions";
+import { OctHttpError } from "../src/server/client";
 
 const testHooks = vscode as unknown as { __outputLines: string[]; __resetOutput(): void };
 
@@ -235,5 +237,22 @@ describe("OctSessionMap", () => {
       fakeStore({ "oct.conversationSessions.v1": [["conv:a", { sessionId: "", modelKey: "m1" }], "junk"] }),
     );
     assert.equal(map.size(), 0);
+  });
+});
+
+describe("isSessionGoneError", () => {
+  it("treats HTTP 404 as gone", () => {
+    assert.equal(isSessionGoneError(new OctHttpError(404, "not found", "/api/session/ses_x")), true);
+  });
+
+  it("keeps non-404 HTTP errors (never prune on uncertainty)", () => {
+    assert.equal(isSessionGoneError(new OctHttpError(500, "boom", "/api/session/ses_x")), false);
+    assert.equal(isSessionGoneError(new OctHttpError(401, "unauthorized", "/api/session/ses_x")), false);
+  });
+
+  it("keeps non-HTTP failures", () => {
+    assert.equal(isSessionGoneError(new Error("socket hang up")), false);
+    assert.equal(isSessionGoneError("404"), false);
+    assert.equal(isSessionGoneError(undefined), false);
   });
 });

@@ -109,6 +109,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "check": "tsc --noEmit -p ./",
+    "lint": "npm run check && npm run compile-tests",
     "compile-tests": "tsc -p ./test/tsconfig.tests.json",
     "test": "npm run compile-tests && node ./test/run.mjs",
     "package": "vsce package"

@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0017 COMPLETE — M3 done; T-0017 checkpoint commit; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0018 COMPLETE, M4 in progress T-0019..T-0023 PLANNED; roadmap + tasks agree)
 
 ## Current Milestone
 
-M3 — COMPLETE (2026-10-05): session management (configurable cap 200, prune-on-start, deleted-session UX, orphan cleanup, evict-dead-first + status grouping), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
+M4 — IN PROGRESS (2026-10-05): approval UX (attention + Copilot levels default/allow-all/autopilot), thinking-effort picker, parked PL-0001..PL-0004, TS lint (T-0018 done). Order: T-0018 → T-0023 (easiest first).
 
 ## Current Task
 
-None (T-0017 complete; no successor scoped).
+T-0019 — Dropped-mapping completeness (`dev/tasks/T-0019-dropped-mapping.md`). PLANNED, awaiting go-ahead.
 
 ## Current Step
 
-T-0017 COMPLETE 2026-10-05 (`tsc` 0, `npm test` 73/73, EDH Steps 1–4+6 PASS / Step 5 unit-only; charlie-recreate investigated — by design, PL-0002/PL-0003 parked).
+T-0018 COMPLETE 2026-10-05 (`npm run lint` green + TS6133 negative check; `tsc` 0, `npm test` 73/73, uncommitted).
 
 ## Objective
 
@@ -29,7 +29,8 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0017 COMPLETE (20261005): cap tuning (default 200, evict-dead-first without burial, `Entry.directory` + grouped status with `time.created` ages; `tsc` 0, `npm test` 73/73). UNCOMMITTED.
+- T-0018 COMPLETE (20261005): TS lint gate (`noUnusedLocals`/`noUnusedParameters`, `npm run lint`, negative check; `tsc` 0, `npm test` 73/73). UNCOMMITTED.
+- T-0017 COMPLETE (20261005): cap tuning (default 200, evict-dead-first without burial, `Entry.directory` + grouped status with `time.created` ages; `tsc` 0, `npm test` 73/73). Committed be123c1.
 - T-0016 COMPLETE (20261005): orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` (resolve → dry-run → Delete/Cancel, default off; `tsc` 0, `npm test` 58/58; command EDH green 2026-10-05). Committed a213028.
 - T-0015 COMPLETE (20261005): `TOOL_NOTICE` removed, engine-tools fallback when bridge unavailable (Copilot primary unchanged, default-deny holds; `tsc` 0, `npm test` 48/48; EDH Parts A/B/C + image redo green). Committed d1a4aa5.
 - T-0014 COMPLETE (20261004): `OCT / <name>` branding + `imageInput` from vision modality (`tsc` 0, `npm test` 48/48). Committed 403a186.
@@ -60,7 +61,7 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Checkpoint commit for T-0017 (policy: ASK) + scope next milestone with user.
+Start T-0019 on user go-ahead. Offer T-0018 checkpoint commit (policy: ASK).
 
 ## Current Blocker
 
@@ -117,7 +118,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`a213028 feat: opt-in orphaned engine session cleanup` (T-0016 only). Worktree holds T-0017 implementation + this `now.md` bookkeeping (uncommitted).
+`be123c1 feat: cap tuning - default 200, evict-dead-first, status grouping` (T-0017: 12 files). Worktree holds T-0018 implementation + PL-0001 fill (yours, pre-existing) + this `now.md` bookkeeping.
 
 ## README Status
 
@@ -133,7 +134,7 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0017 complete 2026-10-05 (uncommitted). M3 done; no successor scoped. No blocker.
+T-0018 complete 2026-10-05 (uncommitted). Next: T-0019. No blocker.
 
 ## Resume Instruction
 

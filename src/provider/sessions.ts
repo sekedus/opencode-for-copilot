@@ -686,7 +686,7 @@ export class OctSessionMap {
       // Fast path: verified this window, no I/O.
       this.touch(key, existing);
       if (existing.modelKey !== model.pickerId) {
-        return this.ensureModel(key, existing, deps, model);
+        return this.ensureModel(existing, deps, model);
       }
       return Promise.resolve(existing.sessionId);
     }
@@ -720,7 +720,7 @@ export class OctSessionMap {
         }
       }
       if (existing.modelKey !== model.pickerId) {
-        return this.ensureModel(key, existing, deps, model);
+        return this.ensureModel(existing, deps, model);
       }
       return existing.sessionId;
     }
@@ -754,7 +754,6 @@ export class OctSessionMap {
   }
 
   private async ensureModel(
-    key: string,
     entry: Entry,
     deps: SessionDeps,
     model: { id: string; providerID: string; pickerId: string },

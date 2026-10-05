@@ -32,6 +32,7 @@ Run:
 ```bash
 npm install
 npx tsc --noEmit -p ./
+npm run lint
 ```
 
 Press `F5` for the Extension Development Host, then run `OCT: Enable Opencode Engine` from the command palette, reload, pick an `OCT` model in Copilot Chat.

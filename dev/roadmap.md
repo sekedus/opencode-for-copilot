@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M3 — COMPLETE (2026-10-05): session management (configurable cap 200, prune-on-start, deleted-session UX, orphan cleanup, evict-dead-first + status grouping), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
+M4 — PLANNED (2026-10-05): approval UX (attention + Copilot levels), thinking-effort picker, parked scale/mill work (PL-0001..PL-0004), TypeScript lint. Easiest first; PL-0002+PL-0004 and notification+levels merged.
 
 ## Tasks
 
@@ -26,6 +26,12 @@ M3 — COMPLETE (2026-10-05): session management (configurable cap 200, prune-on
 - `T-0015` — Copilot tools primary, engine tools fallback — COMPLETE (verified 2026-10-05: `TOOL_NOTICE` removed, engine fallback; `tsc` 0, `npm test` 48/48).
 - `T-0016` — Opt-in orphaned engine session cleanup — COMPLETE (verified 2026-10-05: graveyard + `oct.cleanupOrphans`; `tsc` 0, `npm test` 58/58).
 - `T-0017` — Cap tuning: default, evict-dead-first, status grouping — COMPLETE (verified 2026-10-05: default 200, dead-first eviction, directory groups + ages; `tsc` 0, `npm test` 73/73).
+- `T-0018` — TypeScript lint (strict unused checks, zero-dep) — COMPLETE (verified 2026-10-05: `npm run lint` green + TS6133 negative check; `tsc` 0, `npm test` 73/73).
+- `T-0019` — Dropped-mapping completeness (PL-0002 + PL-0004 merged) — PLANNED (M4).
+- `T-0020` — Approval UX: attention + Copilot levels (merged) — PLANNED (M4, security-sensitive).
+- `T-0021` — Thinking-effort picker entries (engine model variants) — PLANNED (M4).
+- `T-0022` — Per-folder workspace directory (PL-0003, multi-root) — PLANNED (M4, needs design).
+- `T-0023` — Multimodal tool-result ferry (PL-0001) — PLANNED (M4, largest, needs design).
 
 ## Future Milestones
 

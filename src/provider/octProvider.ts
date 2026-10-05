@@ -3,7 +3,7 @@ import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
 import { toOctModels, type OctModel } from "./models";
 import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
-import { conversationKey, DELETED_SESSION_MESSAGE, isSessionGoneError, OctSessionMap, sessionTitleFromMessages } from "./sessions";
+import { conversationKey, DELETED_SESSION_MESSAGE, DROPPED_SESSION_MESSAGE, isSessionGoneError, OctSessionMap, sessionTitleFromMessages } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
 import { mapCopilotTools, type ToolShuttle } from "./tools";
 import { type PermissionTranslator } from "./permissions";
@@ -131,6 +131,14 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       // deleted — repeat the notice instead of silently opening an amnesiac
       // session, no matter how many times the user retries in this chat.
       progress.report(new vscode.LanguageModelTextPart(DELETED_SESSION_MESSAGE));
+      return;
+    }
+    if (this.sessions.isDropped(key)) {
+      // T-0019: this chat's session link was dropped (cap eviction, forget,
+      // restore-cap, prune) — retire the chat with the dropped-link notice
+      // instead of silently forking a history-less session. Creates nothing;
+      // retrying repeats the notice (record is never auto-cleared).
+      progress.report(new vscode.LanguageModelTextPart(DROPPED_SESSION_MESSAGE));
       return;
     }
     const titleSeed = sessionTitleFromMessages(messages);

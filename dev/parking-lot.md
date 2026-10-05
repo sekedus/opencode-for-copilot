@@ -44,9 +44,8 @@ orphan cleanup could not list them.
 
 Action:
 
-DEFER (needs decision: restore runs before the graveyard is loaded?
-ordering + whether newest-dropped — restore keeps oldest — should bury;
-small engine-session leak until then).
+RESOLVED by T-0019 (2026-10-05, EDH green): restore-cap overflow now buries +
+records (`restore` loads graveyard/dropped first, then buries/records overflow).
 
 Revisit When:
 
@@ -98,8 +97,9 @@ with no history and no message; user expected at least a notice.
 
 Action:
 
-DEFER (new scope — T-0017 closed; candidate T-0018 with unit tests +
-charlie-sequence EDH replay).
+RESOLVED by T-0019 (2026-10-05, EDH green): dropped chats are retired T-0013-style
+(block with `DROPPED_SESSION_MESSAGE`, creates nothing, retry repeats) via the
+persisted `oct.droppedConversations.v1` record (separate from `dead`).
 
 Revisit When:
 

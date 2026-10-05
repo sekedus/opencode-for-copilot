@@ -53,7 +53,9 @@ Engine-native actions (edit/write/shell under the engine's ask policy) pause the
 
 ## Orphaned engine sessions
 
-Dropping a mapping (LRU eviction, forget) never deletes the engine session — only the map entry. Sessions OCT mapped and later dropped without a 404 confirming them gone are remembered in a persisted graveyard (cap 200). `OCT: Delete Orphaned Engine Sessions` resolves each id (already-gone entries drop silently), shows a dry-run list, then asks for explicit confirmation before deleting; cancel deletes nothing. Sessions that were never in the map (your own CLI sessions) are never candidates.
+Dropping a mapping (LRU eviction, forget, restore-cap overflow at reload, status prune) never deletes the engine session — only the map entry. Sessions OCT mapped and later dropped without a 404 confirming them gone are remembered in a persisted graveyard (cap 200, restore-cap drops included). `OCT: Delete Orphaned Engine Sessions` resolves each id (already-gone entries drop silently), shows a dry-run list, then asks for explicit confirmation before deleting; cancel deletes nothing. Sessions that were never in the map (your own CLI sessions) are never candidates.
+
+A later turn in a dropped chat is retired: it reports `OCT: the opencode session link for this chat was dropped — start a new Copilot chat.` and creates nothing (retrying repeats the notice; the chat never silently forks a history-less session). This differs from the deleted-session notice (there the session itself was deleted).
 
 ## Workflow entry points
 

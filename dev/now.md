@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0018 COMPLETE, M4 in progress T-0019..T-0023 PLANNED; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0019 COMPLETE, M4 in progress T-0020..T-0023 PLANNED; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,11 +17,11 @@ M4 — IN PROGRESS (2026-10-05): approval UX (attention + Copilot levels default
 
 ## Current Task
 
-T-0019 — Dropped-mapping completeness (`dev/tasks/T-0019-dropped-mapping.md`). PLANNED, awaiting go-ahead.
+T-0020 — Approval UX (`dev/tasks/T-0020-approval-ux.md`). PLANNED, awaiting go-ahead.
 
 ## Current Step
 
-T-0018 COMPLETE 2026-10-05 (`npm run lint` green + TS6133 negative check; `tsc` 0, `npm test` 73/73, uncommitted).
+T-0019 COMPLETE 2026-10-05 (EDH replay green: cap-2 create-eviction buried + recorded live, reload restored 2, dropped-chat turn retired with no fork, cleanup `deleted 1, already-gone 1`; `tsc` 0, `npm test` 84/84 re-verified; uncommitted).
 
 ## Objective
 
@@ -29,6 +29,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
+- T-0019 COMPLETE (20261005): dropped-mapping record (`oct.droppedConversations.v1` on all 4 paths, graveyard feeds, retired-chat notice; `tsc` 0, `npm test` 84/84, EDH replay green). UNCOMMITTED.
 - T-0018 COMPLETE (20261005): TS lint gate (`noUnusedLocals`/`noUnusedParameters`, `npm run lint`, negative check; `tsc` 0, `npm test` 73/73). UNCOMMITTED.
 - T-0017 COMPLETE (20261005): cap tuning (default 200, evict-dead-first without burial, `Entry.directory` + grouped status with `time.created` ages; `tsc` 0, `npm test` 73/73). Committed be123c1.
 - T-0016 COMPLETE (20261005): orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` (resolve → dry-run → Delete/Cancel, default off; `tsc` 0, `npm test` 58/58; command EDH green 2026-10-05). Committed a213028.
@@ -61,7 +62,7 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Start T-0019 on user go-ahead. Offer T-0018 checkpoint commit (policy: ASK).
+Offer T-0019 checkpoint commit (policy: ASK). Then start T-0020 on user go-ahead.
 
 ## Current Blocker
 
@@ -118,11 +119,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`be123c1 feat: cap tuning - default 200, evict-dead-first, status grouping` (T-0017: 12 files). Worktree holds T-0018 implementation + PL-0001 fill (yours, pre-existing) + this `now.md` bookkeeping.
+`04a6972 chore: typescript lint gate (strict unused checks)` (T-0018: 8 files, incl. `.vscode/settings.json`). Worktree holds T-0019 code (`sessions.ts`/`octProvider.ts`/`sessions.test.ts` + README orphan section) + PL-0001 fill (yours, pre-existing) + M4 task files T-0019..T-0023 (T-0019 COMPLETE, uncommitted scope) + this `now.md` bookkeeping.
 
 ## README Status
 
-CURRENT — cap tuning (T-0017, 2026-10-05: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
+CURRENT — dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
 
 ## Important Context
 
@@ -134,7 +135,7 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0018 complete 2026-10-05 (uncommitted). Next: T-0019. No blocker.
+T-0018 committed 4288c22 (2026-10-05). Next: T-0019. No blocker.
 
 ## Resume Instruction
 

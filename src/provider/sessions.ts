@@ -17,10 +17,18 @@ import { messageText } from "./messages";
  *   are pruned via the status command). When the cap is hit at create time,
  *   entries already known dead (conversation flagged by a prior 404 via
  *   `markDead`) go first without a server round trip — they are
- *   gone-confirmed, so nothing joins the graveyard — then oldest-live as
+ *   gone-confirmed, so nothing joins the graveyard and nothing joins the
+ *   dropped record (already retired via `dead`) — then oldest-live as
  *   before (T-0017). Dropped-but-possibly-live session
  *   ids are remembered in the orphan graveyard (T-0016) for the explicit
  *   opt-in cleanup command; nothing is ever deleted automatically.
+ * - Dropped-mapping record (T-0019): every dropped mapping (create-eviction
+ *   of a live entry, `forget` without `gone`, restore-cap overflow, status
+ *   prune) is remembered as key → session id (persisted, oldest-first,
+ *   capped by `maxEntries`, never auto-cleared). A later turn for a recorded
+ *   key is retired: the provider reports the dropped-link notice and creates
+ *   nothing (same shape as `dead`, but a separate set — dead = session-gone,
+ *   dropped = link-gone). 404-confirmed drops never join the graveyard.
  * - One in-flight `getOrCreate` per key: concurrent turns share the promise.
  * - Persistence: entries are saved to globalState on every mutation and
  *   reloaded on construction. A restored entry is verified with
@@ -40,6 +48,11 @@ const DEAD_KEY = "oct.deadConversations.v1";
  *  was dropped (T-0016): the allowlist for the explicit opt-in cleanup
  *  command. Only ids that were never confirmed gone belong here. */
 const GRAVEYARD_KEY = "oct.orphanedSessions.v1";
+/** Persisted dropped-mapping record (T-0019): conversation key → engine
+ *  session id for every dropped mapping (create-eviction of a live entry,
+ *  `forget` without `gone`, restore-cap overflow, status prune). Oldest-first,
+ *  capped by `maxEntries`, never auto-cleared — a recorded key stays retired. */
+const DROPPED_KEY = "oct.droppedConversations.v1";
 /** Graveyard bound: dropping a mapping must never grow storage without limit. */
 export const MAX_ORPHANED_SESSIONS = 200;
 
@@ -82,6 +95,17 @@ export function isSessionGoneError(error: unknown): boolean {
  */
 export const DELETED_SESSION_MESSAGE =
   "OCT: the opencode session for this chat was deleted — start a new Copilot chat.";
+
+/**
+ * Single user-facing sentence for a dropped session link (T-0019): the
+ * mapping was dropped (cap eviction, forget, restore-cap, prune) while the
+ * engine session usually still lives — only the link is gone. The chat is
+ * retired: the turn creates nothing and the user starts a new Copilot chat.
+ * Wording differs from `DELETED_SESSION_MESSAGE` (deleted vs link dropped).
+ * Reported as chat text (B-0005 precedent), retried turns repeat it.
+ */
+export const DROPPED_SESSION_MESSAGE =
+  "OCT: the opencode session link for this chat was dropped — start a new Copilot chat.";
 
 export interface SessionDeps {
   baseUrl: string;
@@ -383,15 +407,23 @@ export class OctSessionMap {
   /** Possibly-live engine session ids whose mapping was dropped (persisted,
    *  oldest-first, capped). Allowlist for the explicit cleanup command. */
   private readonly orphaned: string[] = [];
+  /** Dropped mappings key → session id (persisted, oldest-first, capped by
+   *  `maxEntries`, never auto-cleared). A recorded key is retired: later
+   *  turns report the dropped-link notice instead of forking a new session.
+   *  Separate from `dead` (dead = session-gone, dropped = link-gone). */
+  private readonly dropped = new Map<string, string>();
 
   constructor(private readonly store?: vscode.Memento, maxEntries: number = DEFAULT_MAX_SESSIONS) {
     this.maxEntries =
       typeof maxEntries === "number" && Number.isFinite(maxEntries) && maxEntries >= 1
         ? Math.floor(maxEntries)
         : DEFAULT_MAX_SESSIONS;
-    this.restore();
+    // Load persisted retire/graveyard state BEFORE entries: restore-cap
+    // overflow buries + records during restore (PL-0002 ordering).
     this.restoreDead();
     this.restoreOrphaned();
+    this.restoreDropped();
+    this.restore();
   }
 
   size(): number {
@@ -418,14 +450,17 @@ export class OctSessionMap {
    * that can never succeed on retry, so reusing the id would fail forever.
    * The dropped session may still be alive server-side, so its id joins the
    * orphan graveyard — unless the caller already knows it is gone (404),
-   * e.g. the T-0013 mid-turn recovery path (`{ gone: true }`).
+   * e.g. the T-0013 mid-turn recovery path (`{ gone: true }`). Live drops
+   * also join the dropped record (T-0019): a later turn for the same key is
+   * retired with the start-a-new-chat notice instead of silently forking.
    */
   forget(key: string, opts?: { gone?: boolean }): void {
     const sessionId = this.entries.get(key)?.sessionId;
     if (this.entries.delete(key)) {
       this.unverified.delete(key);
-      if (sessionId && !opts?.gone) {
+      if (sessionId && !opts?.gone && !this.dead.has(key)) {
         this.bury(sessionId);
+        this.recordDropped(key, sessionId);
       }
       this.persist();
       logLine(`Conversation ${key} mapping dropped; the next turn will create a fresh session.`);
@@ -457,6 +492,39 @@ export class OctSessionMap {
   /** True when the conversation's engine session was deleted mid-chat. */
   isDead(key: string): boolean {
     return this.dead.has(key);
+  }
+
+  /** True when the conversation's session link was dropped (T-0019). */
+  isDropped(key: string): boolean {
+    return this.dropped.has(key);
+  }
+
+  /** Snapshot of the dropped record (oldest-first) for tests/diagnostics. */
+  droppedSnapshot(): Array<{ key: string; sessionId: string }> {
+    return [...this.dropped.entries()].map(([key, sessionId]) => ({ key, sessionId }));
+  }
+
+  /**
+   * Remember a dropped mapping key → session id (T-0019, bounded, persisted).
+   * Write-once: a recorded key keeps its first session id and its position.
+   * Dead keys are skipped (dead already retires the chat; keep the two causes
+   * distinguishable). Never auto-cleared — `getOrCreate`, `forget`, `prune`,
+   * and `clear` leave the record alone so retries repeat the notice.
+   */
+  private recordDropped(key: string, sessionId: string): void {
+    if (!key || !sessionId || this.dropped.has(key) || this.dead.has(key)) {
+      return;
+    }
+    this.dropped.set(key, sessionId);
+    while (this.dropped.size > this.maxEntries) {
+      const oldest = this.dropped.keys().next().value as string | undefined;
+      if (!oldest) {
+        break;
+      }
+      this.dropped.delete(oldest);
+    }
+    this.persistDropped();
+    logLine(`Conversation ${key} link dropped (session ${sessionId}); later turns will repeat the start-a-new-chat notice.`);
   }
 
   /** Snapshot of the orphan graveyard (oldest-first) for the cleanup command. */
@@ -566,7 +634,56 @@ export class OctSessionMap {
     }
   }
 
-  /** Load persisted entries; every restored key needs a server check on first use. */
+  /** Load persisted dropped mappings (tolerates missing/garbage; capped). */
+  private restoreDropped(): void {
+    if (!this.store) {
+      return;
+    }
+    try {
+      const raw: unknown = this.store.get(DROPPED_KEY);
+      if (!Array.isArray(raw)) {
+        return;
+      }
+      for (const item of raw) {
+        if (!Array.isArray(item) || item.length !== 2) {
+          continue;
+        }
+        const [key, sessionId] = item as [unknown, unknown];
+        if (typeof key !== "string" || !key || typeof sessionId !== "string" || !sessionId) {
+          continue;
+        }
+        if (this.dropped.has(key) || this.dropped.size >= this.maxEntries) {
+          continue;
+        }
+        this.dropped.set(key, sessionId);
+      }
+    } catch (error) {
+      logLine(`Dropped-conversation restore failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Best-effort persist of the dropped mappings (fire-and-forget). */
+  private persistDropped(): void {
+    if (!this.store) {
+      return;
+    }
+    try {
+      const snapshot: Array<[string, string]> = [...this.dropped.entries()];
+      void Promise.resolve(this.store.update(DROPPED_KEY, snapshot)).catch((error: unknown) => {
+        logLine(`Dropped-conversation persist failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    } catch (error) {
+      logLine(`Dropped-conversation persist failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Load persisted entries; every restored key needs a server check on first use.
+   *  Rows past the cap are restore-cap drops (T-0019): their ids join the
+   *  graveyard and their keys join the dropped record, so a returning chat is
+   *  retired instead of silently forking and the cleanup command can list them.
+   *  The graveyard + dropped record are already loaded (constructor order), so
+   *  bury/record during restore appends correctly (PL-0002 ordering).
+   */
   private restore(): void {
     if (!this.store) {
       return;
@@ -577,6 +694,7 @@ export class OctSessionMap {
         return;
       }
       let restored = 0;
+      let dropped = 0;
       for (const item of raw) {
         if (!Array.isArray(item) || item.length !== 2) {
           continue;
@@ -599,7 +717,12 @@ export class OctSessionMap {
         const rawDir = record["directory"];
         const directory = typeof rawDir === "string" && rawDir.trim() ? rawDir : undefined;
         if (this.entries.size >= this.maxEntries) {
-          break;
+          if (!this.dead.has(key)) {
+            this.bury(sessionId);
+            this.recordDropped(key, sessionId);
+            dropped++;
+          }
+          continue;
         }
         this.entries.set(key, directory === undefined ? { sessionId, modelKey } : { sessionId, modelKey, directory });
         this.unverified.add(key);
@@ -607,6 +730,9 @@ export class OctSessionMap {
       }
       if (restored > 0) {
         logLine(`Restored ${restored} conversation session mapping(s) from storage.`);
+      }
+      if (dropped > 0) {
+        logLine(`Restore cap dropped ${dropped} conversation mapping(s); links retired, sessions listed for opt-in cleanup.`);
       }
     } catch (error) {
       logLine(`Session map restore failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -638,7 +764,9 @@ export class OctSessionMap {
    * prune during the status pass). Returns the pruned conversation keys.
    * Non-dead entries are untouched; persistence follows only when changed.
    * No graveyard entries: callers pass only ids already confirmed gone
-   * (404), so there is nothing alive to clean up later.
+   * (404), so there is nothing alive to clean up later. Pruned keys join the
+   * dropped record (T-0019) so a returning chat is retired with the
+   * start-a-new-chat notice instead of silently forking an amnesiac session.
    */
   pruneBySessionIds(deadIds: Set<string>): string[] {
     const pruned: string[] = [];
@@ -646,6 +774,7 @@ export class OctSessionMap {
       if (deadIds.has(entry.sessionId)) {
         this.entries.delete(key);
         this.unverified.delete(key);
+        this.recordDropped(key, entry.sessionId);
         pruned.push(key);
         logLine(`Session ${entry.sessionId} for ${key} no longer exists; pruned from the map.`);
       }
@@ -730,7 +859,10 @@ export class OctSessionMap {
   /**
    * Check a restored session still exists on the server. Returns true when
    * the turn may proceed on the mapped session; false when the entry was
-   * dropped (404) and the caller must create a fresh session.
+   * dropped (404) and the caller must create a fresh session. A 404 here
+   * remaps immediately (no dropped record, no graveyard): the turn continues
+   * on the fresh session in the same call, so there is no retired chat to
+   * notify and nothing possibly-live to clean up.
    */
   private async verify(key: string, entry: Entry, deps: SessionDeps): Promise<boolean> {
     try {
@@ -798,8 +930,9 @@ export class OctSessionMap {
         break;
       }
       if (this.dead.has(victim)) {
-        // Known gone (prior 404): drop without a graveyard entry — there is
-        // nothing alive to clean up later.
+        // Known gone (prior 404): drop without a graveyard entry and without
+        // a dropped record — there is nothing alive to clean up later and the
+        // chat is already retired via `dead`.
         this.entries.delete(victim);
         this.unverified.delete(victim);
         logLine(`Session map evicted dead conversation (cap ${this.maxEntries}).`);
@@ -810,6 +943,7 @@ export class OctSessionMap {
       this.unverified.delete(victim);
       if (evictedId) {
         this.bury(evictedId);
+        this.recordDropped(victim, evictedId);
       }
       logLine(`Session map evicted oldest conversation (cap ${this.maxEntries}).`);
     }

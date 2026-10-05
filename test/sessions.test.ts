@@ -5,6 +5,7 @@ import {
   OctSessionMap,
   conversationKey,
   DELETED_SESSION_MESSAGE,
+  DROPPED_SESSION_MESSAGE,
   deriveSessionTitle,
   extractUserPromptText,
   fallbackSessionTitle,
@@ -22,6 +23,10 @@ import {
 } from "../src/provider/sessions";
 import { OctHttpError } from "../src/server/client";
 import { DEFAULT_MAX_SESSIONS as CONFIG_DEFAULT_MAX_SESSIONS } from "../src/config";
+import { OctChatProvider } from "../src/provider/octProvider";
+import { ToolShuttle } from "../src/provider/tools";
+import { PermissionTranslator } from "../src/provider/permissions";
+import type { OctModel } from "../src/provider/models";
 
 const testHooks = vscode as unknown as { __outputLines: string[]; __resetOutput(): void };
 
@@ -576,5 +581,229 @@ describe("sessionCreatedMs + formatSessionAge (T-0017)", () => {
     assert.equal(formatSessionAge(now - 21 * 86_400_000, now), "3w");
     assert.equal(formatSessionAge(undefined, now), undefined);
     assert.equal(formatSessionAge(now + 60_000, now), undefined);
+  });
+});
+
+describe("DROPPED_SESSION_MESSAGE (T-0019)", () => {
+  it("is one clear sentence distinct from the deleted-session notice", () => {
+    assert.ok(!DROPPED_SESSION_MESSAGE.includes("\n"), "single line");
+    assert.ok(DROPPED_SESSION_MESSAGE.startsWith("OCT:"), "branded prefix");
+    assert.ok(DROPPED_SESSION_MESSAGE.includes("dropped"), "states the cause (link dropped)");
+    assert.ok(DROPPED_SESSION_MESSAGE.includes("new Copilot chat"), "states the remedy");
+    assert.ok(!DROPPED_SESSION_MESSAGE.includes("try again"), "no retry advice");
+    assert.ok(!/HTTP \d+/.test(DROPPED_SESSION_MESSAGE), "no error dump");
+    assert.notEqual(DROPPED_SESSION_MESSAGE, DELETED_SESSION_MESSAGE, "differs from the deleted notice");
+    assert.ok(DELETED_SESSION_MESSAGE.includes("deleted"), "deleted notice states deletion");
+    assert.ok(!DELETED_SESSION_MESSAGE.includes("link"), "deleted notice is not about the link");
+  });
+});
+
+describe("dropped record (T-0019)", () => {
+  const deps = { baseUrl: "http://127.0.0.1:9", password: "", directory: "D:\\work" };
+  const model = { id: "m", providerID: "p", pickerId: "m" };
+
+  async function withFetchStub(sessionId: string, run: () => Promise<void>): Promise<void> {
+    const realFetch = globalThis.fetch;
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async () =>
+      new Response(JSON.stringify({ data: { id: sessionId } }), { status: 200 });
+    try {
+      await run();
+    } finally {
+      (globalThis as unknown as Record<string, unknown>)["fetch"] = realFetch;
+    }
+  }
+
+  it("forget records the dropped key and buries the id", () => {
+    const map = new OctSessionMap(
+      fakeStore({ "oct.conversationSessions.v1": [["conv:a", { sessionId: "ses_aaa", modelKey: "m" }]] }),
+    );
+    map.forget("conv:a");
+    assert.equal(map.isDropped("conv:a"), true);
+    assert.deepEqual(map.droppedSnapshot(), [{ key: "conv:a", sessionId: "ses_aaa" }]);
+    assert.deepEqual(map.orphanedSessions(), ["ses_aaa"]);
+  });
+
+  it("forget with gone:true records nothing and buries nothing", () => {
+    const map = new OctSessionMap(
+      fakeStore({ "oct.conversationSessions.v1": [["conv:a", { sessionId: "ses_aaa", modelKey: "m" }]] }),
+    );
+    map.forget("conv:a", { gone: true });
+    assert.equal(map.isDropped("conv:a"), false);
+    assert.deepEqual(map.droppedSnapshot(), []);
+    assert.deepEqual(map.orphanedSessions(), []);
+  });
+
+  it("create-eviction of a live entry records and buries", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:old", { sessionId: "ses_old", modelKey: "m" }],
+        ["conv:keep", { sessionId: "ses_keep", modelKey: "m" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    await withFetchStub("ses_new", async () => {
+      await map.getOrCreate("conv:new", deps, model);
+    });
+    assert.equal(map.isDropped("conv:old"), true);
+    assert.deepEqual(map.droppedSnapshot(), [{ key: "conv:old", sessionId: "ses_old" }]);
+    assert.deepEqual(map.orphanedSessions(), ["ses_old"]);
+  });
+
+  it("create-eviction of a dead entry records nothing and buries nothing", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:live", { sessionId: "ses_live", modelKey: "m" }],
+        ["conv:doomed", { sessionId: "ses_doomed", modelKey: "m" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    map.markDead("conv:doomed");
+    await withFetchStub("ses_new", async () => {
+      await map.getOrCreate("conv:new", deps, model);
+    });
+    assert.equal(map.isDropped("conv:doomed"), false);
+    assert.deepEqual(map.droppedSnapshot(), []);
+    assert.deepEqual(map.orphanedSessions(), []);
+  });
+
+  it("restore-cap overflow records and buries (charlie sequence)", () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:alice", { sessionId: "ses_alice", modelKey: "m" }],
+        ["conv:test2", { sessionId: "ses_test2", modelKey: "m" }],
+        ["conv:charlie", { sessionId: "ses_charlie", modelKey: "m" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    assert.equal(map.size(), 2);
+    assert.equal(map.peek("conv:alice"), "ses_alice");
+    assert.equal(map.peek("conv:test2"), "ses_test2");
+    assert.equal(map.peek("conv:charlie"), undefined);
+    assert.equal(map.isDropped("conv:charlie"), true);
+    assert.deepEqual(map.droppedSnapshot(), [{ key: "conv:charlie", sessionId: "ses_charlie" }]);
+    assert.deepEqual(map.orphanedSessions(), ["ses_charlie"]);
+  });
+
+  it("prune records the key but buries nothing (404-confirmed)", () => {
+    const map = new OctSessionMap(
+      fakeStore({ "oct.conversationSessions.v1": [["conv:a", { sessionId: "ses_aaa", modelKey: "m" }]] }),
+    );
+    const pruned = map.pruneBySessionIds(new Set(["ses_aaa"]));
+    assert.deepEqual(pruned, ["conv:a"]);
+    assert.equal(map.isDropped("conv:a"), true);
+    assert.deepEqual(map.droppedSnapshot(), [{ key: "conv:a", sessionId: "ses_aaa" }]);
+    assert.deepEqual(map.orphanedSessions(), [], "404-confirmed prune buries nothing");
+  });
+
+  it("record never auto-clears and persists across reloads", async () => {
+    const store = fakeStore({ "oct.conversationSessions.v1": [["conv:a", { sessionId: "ses_aaa", modelKey: "m" }]] });
+    const first = new OctSessionMap(store);
+    first.forget("conv:a");
+    assert.equal(first.isDropped("conv:a"), true);
+    first.clear();
+    assert.equal(first.isDropped("conv:a"), true, "clear() leaves the record alone");
+    const second = new OctSessionMap(store);
+    assert.equal(second.isDropped("conv:a"), true, "record survives reload");
+    assert.deepEqual(second.droppedSnapshot(), [{ key: "conv:a", sessionId: "ses_aaa" }]);
+    assert.deepEqual(second.orphanedSessions(), ["ses_aaa"], "graveyard survives reload");
+    await withFetchStub("ses_new", async () => {
+      await second.getOrCreate("conv:other", deps, model);
+    });
+    assert.equal(second.isDropped("conv:a"), true, "creates for other keys leave the record alone");
+  });
+
+  it("record is bounded by maxEntries (oldest-first)", () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:a", { sessionId: "ses_a", modelKey: "m" }],
+        ["conv:b", { sessionId: "ses_b", modelKey: "m" }],
+        ["conv:c", { sessionId: "ses_c", modelKey: "m" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    // Restore keeps a+b, drops c (oldest dropped record).
+    assert.deepEqual(map.droppedSnapshot().map((e) => e.key), ["conv:c"]);
+    map.forget("conv:a");
+    assert.deepEqual(map.droppedSnapshot().map((e) => e.key), ["conv:c", "conv:a"]);
+    map.forget("conv:b");
+    // Cap 2 evicts the oldest dropped key (conv:c).
+    assert.deepEqual(map.droppedSnapshot().map((e) => e.key), ["conv:a", "conv:b"]);
+    assert.equal(map.isDropped("conv:c"), false);
+    assert.equal(map.isDropped("conv:a"), true);
+    assert.equal(map.isDropped("conv:b"), true);
+  });
+
+  it("ignores garbage dropped rows", () => {
+    const map = new OctSessionMap(
+      fakeStore({ "oct.droppedConversations.v1": [["conv:a", "ses_aaa"], ["conv:b", 42], "junk", ["", "ses_x"]] }),
+    );
+    assert.equal(map.isDropped("conv:a"), true);
+    assert.equal(map.isDropped("conv:b"), false);
+    assert.deepEqual(map.droppedSnapshot(), [{ key: "conv:a", sessionId: "ses_aaa" }]);
+  });
+});
+
+describe("provider retired-chat notice (T-0019)", () => {
+  it("a turn for a dropped key reports the notice and creates nothing; retry repeats", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [["conv:keep", { sessionId: "ses_keep", modelKey: "p/m" }]],
+      "oct.droppedConversations.v1": [["conv:charlie", "ses_charlie"]],
+      "oct.orphanedSessions.v1": ["ses_charlie"],
+    });
+    const provider = new OctChatProvider({
+      baseUrl: "http://127.0.0.1:9",
+      password: "",
+      directory: "D:\\work",
+      sessionStore: store,
+      shuttle: new ToolShuttle(),
+      translator: new PermissionTranslator(),
+      permissionTimeoutMs: 1000,
+      managed: true,
+      maxSessions: 2,
+    });
+    const model = { id: "p/m", providerID: "p", modelID: "m" } as unknown as OctModel;
+    const messages = [userMessage("hello")] as unknown as readonly vscode.LanguageModelChatRequestMessage[];
+    const options = {
+      modelOptions: { _conversationId: "charlie" },
+      tools: [],
+    } as unknown as vscode.ProvideLanguageModelChatResponseOptions;
+    const reported: string[] = [];
+    const progress = {
+      report(part: unknown) {
+        const value = (part as { value?: unknown }).value;
+        if (typeof value === "string") {
+          reported.push(value);
+        } else {
+          reported.push(String(value ?? part));
+        }
+      },
+    } as unknown as vscode.Progress<vscode.LanguageModelResponsePart>;
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: () => ({ dispose() {} }),
+    } as unknown as vscode.CancellationToken;
+    let fetches = 0;
+    const realFetch = globalThis.fetch;
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async () => {
+      fetches++;
+      return new Response(JSON.stringify({ data: { id: "ses_fork" } }), { status: 200 });
+    };
+    try {
+      await provider.provideLanguageModelChatResponse(model, messages, options, progress, token);
+      await provider.provideLanguageModelChatResponse(model, messages, options, progress, token);
+    } finally {
+      globalThis.fetch = realFetch;
+      provider.dispose();
+    }
+    assert.equal(fetches, 0, "retired chat creates no session (no fork)");
+    assert.equal(reported.length, 2, "first turn + retry both report");
+    for (const line of reported) {
+      assert.equal(line, DROPPED_SESSION_MESSAGE);
+    }
+    assert.deepEqual(provider.orphanedSessions(), ["ses_charlie"], "cleanup still lists the old id");
+    assert.ok(
+      provider.mappedSessions().every((e: { key: string }) => e.key !== "conv:charlie"),
+      "map unchanged (no ses_fork-style fork)",
+    );
   });
 });

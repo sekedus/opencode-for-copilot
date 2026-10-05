@@ -48,9 +48,15 @@ function toOctModel(info: ModelInfo): OctModel | undefined {
         : FALLBACK_INPUT_TOKENS;
   const name = typeof info.name === "string" && info.name ? info.name : info.id;
   const family = typeof info.family === "string" && info.family ? info.family : info.providerID;
+  // Vision: opencode marks image input with the "image" modality
+  // (schema default `input: ["text","image"]`; vocabulary
+  // "text"|"audio"|"image"|"video"|"pdf"). Advertises the chat attachment UI;
+  // transport stays provider-side (attachments still placeholders).
+  const inputs = info.capabilities?.input;
+  const imageInput = Array.isArray(inputs) && inputs.includes("image");
   return {
     id: octPickerId(info.providerID, info.id),
-    name,
+    name: `OCT / ${name}`,
     family,
     version: "1.0.0",
     detail: `OCT · ${info.providerID}`,
@@ -60,7 +66,7 @@ function toOctModel(info: ModelInfo): OctModel | undefined {
     // Picker lists only models with toolCalling=true for agent chat.
     // Tools execute via the bridge (see octProvider); definitions without
     // a bridge get a notice.
-    capabilities: { toolCalling: true, imageInput: false },
+    capabilities: { toolCalling: true, imageInput },
     isUserSelectable: true,
     providerID: info.providerID,
     modelID: info.id,

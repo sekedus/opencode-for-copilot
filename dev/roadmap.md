@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M2 — COMPLETE (2026-10-02): tool-call bridge, session title/sync, tests, VSIX packaging.
+M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-start, deleted-session UX), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
 
 ## Tasks
 
@@ -19,6 +19,11 @@ M2 — COMPLETE (2026-10-02): tool-call bridge, session title/sync, tests, VSIX 
 - `T-0008` — Unit tests (harness + pure-logic coverage) — COMPLETE (verified 2026-10-02: `npm test` 32/32 green, zero new deps).
 - `T-0009` — VSIX packaging (local install artifact) — COMPLETE (verified 2026-10-02: 18-file artifact + user-run install proof).
 - `T-0010` — Extension logo, icon & LICENSE — COMPLETE (verified 2026-10-03: `assets/` art + manifest `icon` + MIT `LICENSE`; `tsc` 0, package 21 files / 59.01 KB, `vsce` warning gone).
+- `T-0011` — Configurable max stored sessions — COMPLETE (verified 2026-10-03: `tsc` 0, `npm test` 34/34).
+- `T-0012` — Prune dead sessions on start — COMPLETE (verified 2026-10-04: per-id verify shared by startup + status; `tsc` 0, `npm test` 37/37).
+- `T-0013` — Deleted session mid-turn tells user to start a new chat — COMPLETE (verified 2026-10-04: typed 404 + one-sentence throw; `tsc` 0, `npm test` 38/38).
+- `T-0014` — Model name `OCT / <name>` + vision capability — COMPLETE (verified 2026-10-04: branding + `imageInput`; `tsc` 0, `npm test` 48/48).
+- `T-0015` — Copilot tools primary, engine tools fallback — COMPLETE (verified 2026-10-05: `TOOL_NOTICE` removed, engine fallback; `tsc` 0, `npm test` 48/48).
 
 ## Future Milestones
 

@@ -9,21 +9,20 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0010 COMPLETE — M2 done; stale-docs sweep committed b5afd3e; B-0003/B-0004/B-0005 verified; T-0010 verified-uncommitted; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0015 COMPLETE — M2 done, M3 in progress; T-0015 verified-uncommitted; roadmap + tasks agree)
 
 ## Current Milestone
 
-M2 — COMPLETE (2026-10-02): tool-call bridge, session title/sync, tests, VSIX packaging.
+M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-start, deleted-session UX), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
 
 ## Current Task
 
-None — M2 COMPLETE (all tasks T-0001..T-0009 done and committed). No active task.
+None — T-0015 complete; T-0016/T-0017 scaffolding uncommitted.
 
 ## Current Step
 
-T-0008 committed (3ccd84f, 2026-10-02). M2 CLOSED 2026-10-02 (T-0009 committed 13638c3; all M2 items complete).
-Standing OPEN: EDH redo (image workspace) + Steps 3–8. No active task.
-OPEN: EDH redo (image workspace) + Steps 3–8.
+T-0015 COMPLETE 2026-10-05 (`tsc` 0, `npm test` 48/48, uncommitted; EDH Parts A/B/C green).
+Image redo 2026-10-05: mechanics PASS (no B-0003 spin, no B-0004 starvation, breaker still untriggered; Steps 3–8 green) — but `view_image` is engine-blind (placeholder-only results), parked as PL-0001 (uncommitted).
 
 ## Objective
 
@@ -31,7 +30,12 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0010 COMPLETE (20261003): logo/icon/LICENSE (`assets/` art + manifest `icon` + MIT `LICENSE`; `tsc` 0, package 21 files / 59.01 KB). Uncommitted.
+- T-0015 COMPLETE (20261005): `TOOL_NOTICE` removed, engine-tools fallback when bridge unavailable (Copilot primary unchanged, default-deny holds; `tsc` 0, `npm test` 48/48; EDH Parts A/B/C + image redo green). Uncommitted.
+- T-0014 COMPLETE (20261004): `OCT / <name>` branding + `imageInput` from vision modality (`tsc` 0, `npm test` 48/48). Committed 403a186.
+- T-0013 COMPLETE (20261004): typed 404 preserved through admission + gone-branch (`forget` + one-sentence throw; `tsc` 0, `npm test` 42/42). Committed f0005cf.
+- T-0012 COMPLETE (20261004): per-id verify-and-prune shared by startup + status (`isSessionGoneError`, list demoted to titles; `tsc` 0, `npm test` 37/37). Committed 8c0f8a9.
+- T-0011 COMPLETE (20261003): `oct.maxSessions` setting (default 50, clamped) + map cap wiring + 2 unit tests (`tsc` 0, `npm test` 34/34). Committed 3d7ea3b.
+- T-0010 COMPLETE (20261003): logo/icon/LICENSE (`assets/` art + manifest `icon` + MIT `LICENSE`; `tsc` 0, package 21 files / 59.01 KB). Committed ad25133.
 - T-0009 COMPLETE (20261002): local VSIX (`@vscode/vsce@4.0.0`, 18 files, 48.51 KB, contents-gated) + user-run install proof. M2 COMPLETE.
 - T-0008 COMPLETE (20261002): zero-dep `node:test` harness (`vscode` mock + NODE_PATH shim + runner) with 32 session/message units incl. EDH regressions; main build untouched.
 - T-0007 COMPLETE (20261002): derived engine titles (`<userRequest>` unwrap, attachment stripping) + unique `OCT: <key8> <MM-DD HH:mm>` fallback + status list with prune; EDH attempts 1–3 (#1/#2/#3/#4/#5 PASS).
@@ -51,11 +55,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_M2_CLOSED
+STATE_M3_OPENED
 
 ## Next Action
 
-No active task. Next work needs a scoped task (post-M2 scope undecided) or the standing EDH redo.
+Commit T-0015 (Task: ASK), then implement T-0016.
 
 ## Current Blocker
 
@@ -112,15 +116,15 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`b5afd3e docs: refresh stale M1 text-only references for M2 tool bridge` (stale-docs sweep: text-only, security §2, DB line, ADR reaper, now.md checkpoint). Worktree clean at commit time.
+`403a186 feat: OCT model branding and vision capability` (T-0014 complete + verified). Worktree holds T-0015 (complete, uncommitted) + M3 scaffolding (T-0016..T-0017, roadmap) uncommitted.
 
 ## README Status
 
-CURRENT — license section added at bottom (T-0010, 2026-10-03) + session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
+CURRENT — tool priority (Copilot primary, engine fallback, T-0015, 2026-10-05) + `oct.maxSessions` setting (T-0011) + license section at bottom (T-0010, 2026-10-03) + session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
 
 ## Important Context
 
-Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). References in %TEMP% (refreshed 2026-09-30): opencode v2 (293d60a), openchamber v2 (566ba61), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
+Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
 
 ## Do Not Change
 
@@ -128,8 +132,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-Stale-docs sweep committed b5afd3e (2026-10-03). T-0010 logo/icon/LICENSE complete + verified, uncommitted. No active task.
+T-0015 complete + verified, uncommitted (2026-10-05). Next: commit T-0015, then T-0016. No blocker.
 
 ## Resume Instruction
 
-Read this file first. M2 is CLOSED (all tasks committed). No active task — next work needs scoping.
+Read this file first. M3 is IN PROGRESS (T-0015 done; T-0016/T-0017 scaffolding uncommitted).

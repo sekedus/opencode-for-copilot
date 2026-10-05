@@ -42,12 +42,12 @@ Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `
 
 ## Tool bridge
 
-Agent-mode turns work end to end: the engine calls Copilot tools through the bundled `oct-tools` plugin, the host executes them, results flow back, and the engine answers with them. Parallel calls in one step are supported; 1 conversation = 1 session holds across tool turns; cancelling interrupts the session and unblocks executors.
+Agent-mode turns work end to end: Copilot tools are primary — the engine calls them through the bundled `oct-tools` plugin, the host executes them, results flow back, and the engine answers with them. Engine tools are the fallback when the bridge is unavailable (external mode without the plugin): the turn is sent as-is and the engine may use its own tools, with ask-policy approvals still surfacing as confirmations (default-deny). Parallel calls in one step are supported; 1 conversation = 1 session holds across tool turns; cancelling interrupts the session and unblocks executors.
 
 Engine-native actions (edit/write/shell under the engine's ask policy) pause the turn with a `OCT needs approval` warning: **Continue Once** (`once`), **Always for This Session** (client-side auto-`once` for the rest of that session — the bridge never sends `always`, and VS Code's Allow-all never propagates), or **Cancel**. Timeout (configurable), dismiss, disconnect, or VS Code cancellation all resolve to deny; an undeliverable reply falls back to interrupting the session. A denied turn ends with one clean sentence, not an error. Every decision is logged (action + resources only).
 
 - Managed mode installs the plugin automatically (`OPENCODE_CONFIG_CONTENT` merges with user plugins) and wires the loopback callback (`OCT_CALLBACK_URL`/`OCT_CALLBACK_TOKEN`).
-- External mode (`oct.opencodeUrl`) needs manual install: copy `plugin/oct-tools` to the server, add its absolute path to the server's `plugins` config, and export `OCT_CALLBACK_URL` (from `OCT: Show Status`) plus `OCT_CALLBACK_TOKEN` matching `oct.callbackToken` (set one — the default per-window token cannot be pasted into a persistent server env). Without the plugin, turns stay text-only with a notice (no crash).
+- External mode (`oct.opencodeUrl`) needs manual install: copy `plugin/oct-tools` to the server, add its absolute path to the server's `plugins` config, and export `OCT_CALLBACK_URL` (from `OCT: Show Status`) plus `OCT_CALLBACK_TOKEN` matching `oct.callbackToken` (set one — the default per-window token cannot be pasted into a persistent server env). Without the plugin, engine-native tools are the fallback (no text-only notice, no crash).
 - Text-only results: image-producing tools return a placeholder (multimodal deferred); a circuit breaker stops runaway identical-call loops with a proceed-with-what-you-have instruction.
 
 ## Workflow entry points

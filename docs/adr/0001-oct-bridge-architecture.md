@@ -53,6 +53,6 @@ Decision 3 (background reaper) and Decision 4 / Consequences (negative / follow-
 
 - `capabilities.toolCalling=true`; Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop (`T-0006`, verified 2026-10-02).
 - Engine-native actions (`permission.asked`) pause the turn with a VS Code confirmation (once / always-for-session / cancel) and default-deny on timeout, dismiss, disconnect, or cancellation.
-- Text-only fallback remains only when the bridge is unavailable (external mode without the plugin) and for non-text content (image-producing tools return a placeholder — multimodal deferred).
+- Copilot tools primary, engine tools fallback when the bridge is unavailable (external mode without the plugin, T-0015); non-text content stays placeholder-only (image-producing tools return a placeholder — multimodal deferred).
 - No background reaper: sessions are never deleted on the hot path; dead entries are pruned via `OCT: Show Status` (`T-0007`).
 - The Revisit Condition's "tool passthrough is scoped" trigger is met and closed by T-0006.

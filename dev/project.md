@@ -17,7 +17,7 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 - Managed `opencode serve` lifecycle (spawn, health via `GET /api/info`, stop) + explicit external-URL override.
 - `languageModelChatProviders` vendor `oct` with model list from `GET /api/model`.
 - Chat streaming with persistent 1 Copilot conversation = 1 opencode session mapping (no per-turn create/delete).
-- Copilot tool bridge (M2): Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop; engine-native actions surface as VS Code approvals with default-deny. Text-only fallback only when the bridge is unavailable (external mode without the plugin); image/data tool results serialize to text placeholders (multimodal deferred).
+- Copilot tool bridge (M2): Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop (primary); engine-native tools are the fallback when the bridge is unavailable (external mode without the plugin, T-0015). Engine-native actions surface as VS Code approvals with default-deny. Image/data tool results serialize to text placeholders (multimodal deferred).
 - Status command + output-channel diagnostics.
 
 ## Out of Scope
@@ -39,7 +39,7 @@ VS Code extension (`oct`) that bridges a local opencode terminal v2 server into 
 ## Project Constraints
 
 - OCT disabled by default; background server only runs after explicit enable + reload.
-- `capabilities.toolCalling=true` (tool bridge via `oct-tools` plugin + shuttle loop, T-0006); text-only fallback only when the bridge is unavailable.
+- `capabilities.toolCalling=true` (tool bridge via `oct-tools` plugin + shuttle loop, T-0006); Copilot tools primary, engine tools fallback when the bridge is unavailable (T-0015).
 - opencode v2 only; v1 proxy protocol is not supported.
 
 ## Success Criteria

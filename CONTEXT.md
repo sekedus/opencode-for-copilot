@@ -18,7 +18,7 @@ Do not use this file as a task list, implementation log, or general project diar
 ## Important User/Business Concepts
 
 - **Session sprawl** — The v1 proxy failure mode (1 Copilot request = 1 opencode session). The bridge's core fix is persistent reuse.
-- **Tool bridge (M2)** — Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop (host executes, engine loops); engine-native actions surface as VS Code approvals with default-deny. Text-only fallback remains only when the bridge is unavailable (external mode without the plugin) or for non-text content (image-producing tools return a placeholder — multimodal deferred).
+- **Tool bridge (M2+M3)** — Copilot tools execute on the host via the bundled `oct-tools` plugin + shuttle loop (host executes, engine loops) as the primary path; engine-native tools are the fallback when the bridge is unavailable (external mode without the plugin). Engine-native actions surface as VS Code approvals with default-deny. Non-text content stays placeholder-only (image-producing tools return a placeholder — multimodal deferred).
 
 ## Naming Decisions
 

@@ -11,8 +11,9 @@ import { type PermissionTranslator } from "./permissions";
 /**
  * OCT chat provider: exposes engine models in the Copilot picker and serves
  * turns with 1 conversation = 1 session reuse, plus the tool bridge:
- * Copilot tools execute on the host via the shuttle loop, engine-native
- * actions surface as approvals.
+ * Copilot tools execute on the host via the shuttle loop (primary),
+ * engine-native tools are the fallback when the bridge is unavailable, and
+ * engine-native actions surface as approvals.
  */
 
 export interface OctProviderDeps {
@@ -30,9 +31,6 @@ export interface OctProviderDeps {
   /** Conversation→session map cap (`oct.maxSessions`). */
   maxSessions: number;
 }
-
-const TOOL_NOTICE =
-  "Note: this request included tool definitions, but the OCT tool bridge is unavailable (external mode without the plugin). Answering with text only.";
 
 function estimateTokens(text: string): number {
   if (!text) {
@@ -159,26 +157,29 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       await finishTurn(sid, outcome);
     };
     const runNewTurn = async (sid: string): Promise<void> => {
-      let promptText = buildPromptText(messages);
+      const promptText = buildPromptText(messages);
       const copilotTools = options.tools ?? [];
       if (copilotTools.length > 0) {
         const bridgeAvailable = this.deps.managed || this.deps.shuttle.bridgeSeen;
         const defs = bridgeAvailable ? mapCopilotTools(copilotTools) : [];
         if (defs.length > 0) {
           this.deps.shuttle.setPending(sid, defs);
-          logLine(`Turn on ${sid} carries ${String(defs.length)} Copilot tool(s) via the bridge.`);
+          logLine(`Turn on ${sid} carries ${String(defs.length)} Copilot tool(s) via the bridge (primary).`);
         } else if (!this.deps.shuttle.hasPending(sid)) {
-          promptText = `${TOOL_NOTICE}\n\n${promptText}`;
+          // T-0015: Copilot tools primary, engine tools fallback. No
+          // text-only notice: the engine may use its own tools; ask-policy
+          // approvals still surface via the confirmation flow (default-deny).
           logLine(
             `Turn on ${sid} carries tool definitions but the bridge is unavailable ` +
-              `(external mode without the plugin); answering text-only.`,
+              `(external mode without the plugin); engine tools are the fallback.`,
           );
         } else {
           logLine(`Turn on ${sid} reuses ${String(this.deps.shuttle.pendingFor(sid).length)} pending bridge tool(s).`);
         }
       } else if (hasToolParts(messages)) {
-        promptText = `${TOOL_NOTICE}\n\n${promptText}`;
-        logLine(`Turn on ${sid} carries tool parts without definitions; answering text-only.`);
+        // T-0015: same fallback — serialized tool parts stay in the prompt
+        // as text context (placeholders for non-text); no text-only notice.
+        logLine(`Turn on ${sid} carries tool parts without definitions; engine tools are the fallback.`);
       }
       logLine(`Turn on ${sid} (${model.id}, ${promptText.length} chars).`);
       const outcome = await streamTurn({ ...streamDepsFor(sid), promptText }, progress, token, hooks);

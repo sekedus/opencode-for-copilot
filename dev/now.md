@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0016 COMPLETE — M2 done, M3 in progress; T-0016 verified-uncommitted; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0017 COMPLETE — M3 done; T-0017 checkpoint commit; roadmap + tasks agree)
 
 ## Current Milestone
 
-M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-start, deleted-session UX), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
+M3 — COMPLETE (2026-10-05): session management (configurable cap 200, prune-on-start, deleted-session UX, orphan cleanup, evict-dead-first + status grouping), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
 
 ## Current Task
 
-None — T-0016 complete; T-0017 scaffolding uncommitted.
+None (T-0017 complete; no successor scoped).
 
 ## Current Step
 
-T-0016 COMPLETE 2026-10-05 (`tsc` 0, `npm test` 58/58, uncommitted; command EDH green).
+T-0017 COMPLETE 2026-10-05 (`tsc` 0, `npm test` 73/73, EDH Steps 1–4+6 PASS / Step 5 unit-only; charlie-recreate investigated — by design, PL-0002/PL-0003 parked).
 
 ## Objective
 
@@ -29,7 +29,8 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0016 COMPLETE (20261005): orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` (resolve → dry-run → Delete/Cancel, default off; `tsc` 0, `npm test` 58/58; command EDH green 2026-10-05). Uncommitted.
+- T-0017 COMPLETE (20261005): cap tuning (default 200, evict-dead-first without burial, `Entry.directory` + grouped status with `time.created` ages; `tsc` 0, `npm test` 73/73). UNCOMMITTED.
+- T-0016 COMPLETE (20261005): orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` (resolve → dry-run → Delete/Cancel, default off; `tsc` 0, `npm test` 58/58; command EDH green 2026-10-05). Committed a213028.
 - T-0015 COMPLETE (20261005): `TOOL_NOTICE` removed, engine-tools fallback when bridge unavailable (Copilot primary unchanged, default-deny holds; `tsc` 0, `npm test` 48/48; EDH Parts A/B/C + image redo green). Committed d1a4aa5.
 - T-0014 COMPLETE (20261004): `OCT / <name>` branding + `imageInput` from vision modality (`tsc` 0, `npm test` 48/48). Committed 403a186.
 - T-0013 COMPLETE (20261004): typed 404 preserved through admission + gone-branch (`forget` + one-sentence throw; `tsc` 0, `npm test` 42/42). Committed f0005cf.
@@ -59,7 +60,7 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Commit T-0016 (Task: ASK), then implement T-0017.
+Checkpoint commit for T-0017 (policy: ASK) + scope next milestone with user.
 
 ## Current Blocker
 
@@ -116,11 +117,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`d1a4aa5 feat: Copilot tools primary, engine tools fallback` (T-0015 only: 8 files). Worktree holds T-0016/T-0017 scaffolding + roadmap PLANNED lines + PL-0001 + this `now.md` bookkeeping.
+`a213028 feat: opt-in orphaned engine session cleanup` (T-0016 only). Worktree holds T-0017 implementation + this `now.md` bookkeeping (uncommitted).
 
 ## README Status
 
-CURRENT — orphan cleanup command (T-0016, 2026-10-05) + tool priority (Copilot primary, engine fallback, T-0015, 2026-10-05) + `oct.maxSessions` setting (T-0011) + license section at bottom (T-0010, 2026-10-03) + session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
+CURRENT — cap tuning (T-0017, 2026-10-05: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
 
 ## Important Context
 
@@ -132,8 +133,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0016 complete 2026-10-05 (uncommitted; command EDH green). Next: T-0017 or commit T-0016. No blocker.
+T-0017 complete 2026-10-05 (uncommitted). M3 done; no successor scoped. No blocker.
 
 ## Resume Instruction
 
-Read this file first. M3 is IN PROGRESS (T-0016 done; T-0017 scaffolding uncommitted).
+Read this file first. Offer the T-0017 checkpoint commit; then scope next work with the user.

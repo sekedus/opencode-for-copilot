@@ -7,7 +7,7 @@ import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
 import { deleteSession, getSession, listSessions } from "./server/client";
 import { PermissionTranslator } from "./provider/permissions";
-import { isSessionGoneError } from "./provider/sessions";
+import { isSessionGoneError, groupSnapshotsByDirectory, sessionCreatedMs, formatSessionAge } from "./provider/sessions";
 import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
 
@@ -170,7 +170,11 @@ async function verifyAndPruneConversations(): Promise<string[]> {
 /**
  * Append the conversation→session list to the status output. Dead entries
  * are pruned first via per-id verification; one engine `GET /api/session`
- * pass then supplies titles for display only (never for prune decisions).
+ * pass then supplies titles + creation times for display only (never for
+ * prune decisions). Entries group by workspace directory (T-0017) with a
+ * per-entry age from the engine `time.created` millis field (verified live
+ * 2026-10-05 against opencode v2.0.21); unmapped/missing times print
+ * "age unknown".
  */
 async function appendSessionList(lines: string[]): Promise<void> {
   if (!chatProvider) {
@@ -192,21 +196,31 @@ async function appendSessionList(lines: string[]): Promise<void> {
     return;
   }
   const { baseUrl, password } = chatProvider.serverTarget();
-  let byId = new Map<string, string>();
+  const titles = new Map<string, string>();
+  const created = new Map<string, number>();
   try {
-    const listed = await listSessions(baseUrl, password, { limit: 100 });
-    byId = new Map(
-      listed.map((s) => [s.id, typeof s.title === "string" && s.title ? s.title : "(untitled)"]),
-    );
+    const listed = await listSessions(baseUrl, password, { limit: 500 });
+    for (const item of listed) {
+      titles.set(item.id, typeof item.title === "string" && item.title ? item.title : "(untitled)");
+      const ms = sessionCreatedMs(item);
+      if (ms !== undefined) {
+        created.set(item.id, ms);
+      }
+    }
   } catch (error) {
     logLine(`Session title list failed (map unchanged): ${error instanceof Error ? error.message : String(error)}`);
   }
+  const nowMs = Date.now();
   lines.push(`sessions: ${String(mapped.length)} mapped conversation(s)${prunedKeys.length > 0 ? `, ${String(prunedKeys.length)} missing — pruned` : ""}`);
-  for (const entry of mapped) {
-    const title = byId.get(entry.sessionId);
-    lines.push(
-      `  ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title ?? "(title unavailable)"}" (found)`,
-    );
+  for (const group of groupSnapshotsByDirectory(mapped)) {
+    lines.push(`  [${group.directory}] ${String(group.entries.length)} conversation(s)`);
+    for (const entry of group.entries) {
+      const title = titles.get(entry.sessionId) ?? "(title unavailable)";
+      const age = formatSessionAge(created.get(entry.sessionId), nowMs);
+      lines.push(
+        `    ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title}" (found, ${age === undefined ? "age unknown" : `${age} old`})`,
+      );
+    }
   }
 }
 

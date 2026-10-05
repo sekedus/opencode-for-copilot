@@ -11,10 +11,17 @@ import {
   isSessionGoneError,
   sessionTitleFromMessages,
   trackOrphaned,
+  chooseEvictionKey,
+  groupSnapshotsByDirectory,
+  sessionCreatedMs,
+  formatSessionAge,
+  DEFAULT_MAX_SESSIONS,
   DEFAULT_SESSION_TITLE,
   MAX_ORPHANED_SESSIONS,
+  UNKNOWN_DIRECTORY_GROUP,
 } from "../src/provider/sessions";
 import { OctHttpError } from "../src/server/client";
+import { DEFAULT_MAX_SESSIONS as CONFIG_DEFAULT_MAX_SESSIONS } from "../src/config";
 
 const testHooks = vscode as unknown as { __outputLines: string[]; __resetOutput(): void };
 
@@ -179,13 +186,33 @@ describe("OctSessionMap", () => {
     ]);
   });
 
-  it("caps restored entries at 50 (LRU)", () => {
+  it("caps restored entries at 200 (LRU)", () => {
     const stored: Array<[string, { sessionId: string; modelKey: string }]> = Array.from(
-      { length: 60 },
+      { length: 250 },
       (_, i) => [`conv:${i}`, { sessionId: `ses_${i}`, modelKey: "m1" }] as [string, { sessionId: string; modelKey: string }],
     );
     const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }));
-    assert.equal(map.size(), 50);
+    assert.equal(map.size(), 200);
+  });
+
+  it("fresh install default holds 200", () => {
+    assert.equal(DEFAULT_MAX_SESSIONS, 200);
+    const stored: Array<[string, { sessionId: string; modelKey: string }]> = Array.from(
+      { length: 250 },
+      (_, i) => [`conv:${i}`, { sessionId: `ses_${i}`, modelKey: "m1" }] as [string, { sessionId: string; modelKey: string }],
+    );
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }));
+    assert.equal(map.size(), DEFAULT_MAX_SESSIONS);
+  });
+
+  it("package.json + config defaults agree at 200", () => {
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const { join } = require("node:path") as typeof import("node:path");
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      contributes?: { configuration?: { properties?: { "oct.maxSessions"?: { default?: unknown } } } };
+    };
+    assert.equal(pkg.contributes?.configuration?.properties?.["oct.maxSessions"]?.default, 200);
+    assert.equal(CONFIG_DEFAULT_MAX_SESSIONS, 200);
   });
 
   it("honors a custom cap from oct.maxSessions", () => {
@@ -201,14 +228,14 @@ describe("OctSessionMap", () => {
     assert.equal(map.peek("conv:3"), undefined);
   });
 
-  it("falls back to 50 on invalid caps", () => {
+  it("falls back to 200 on invalid caps", () => {
     const stored: Array<[string, { sessionId: string; modelKey: string }]> = Array.from(
-      { length: 60 },
+      { length: 250 },
       (_, i) => [`conv:${i}`, { sessionId: `ses_${i}`, modelKey: "m1" }] as [string, { sessionId: string; modelKey: string }],
     );
     for (const bad of [0, -1, Number.NaN]) {
       const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }), bad);
-      assert.equal(map.size(), 50);
+      assert.equal(map.size(), 200);
     }
   });
 
@@ -377,5 +404,177 @@ describe("orphan graveyard", () => {
       fakeStore({ "oct.orphanedSessions.v1": ["ses_aaa", 42, "", null, "ses_bbb"] }),
     );
     assert.deepEqual(seeded.orphanedSessions(), ["ses_aaa", "ses_bbb"]);
+  });
+});
+
+describe("chooseEvictionKey (T-0017 evict-dead-first)", () => {
+  it("returns undefined when empty", () => {
+    assert.equal(chooseEvictionKey([], new Set()), undefined);
+  });
+
+  it("drops the oldest dead entry first, live kept", () => {
+    const keys = ["conv:live-old", "conv:dead", "conv:live-new"];
+    assert.equal(chooseEvictionKey(keys, new Set(["conv:dead"])), "conv:dead");
+  });
+
+  it("prefers the oldest dead when several are dead", () => {
+    const keys = ["conv:live", "conv:dead-new", "conv:dead-old"];
+    // Iteration is oldest-first: the first dead encountered wins, so order
+    // the array oldest-first — dead-old must come before dead-new.
+    assert.equal(chooseEvictionKey(["conv:live", "conv:dead-old", "conv:dead-new"], new Set(["conv:dead-old", "conv:dead-new"])), "conv:dead-old");
+    assert.equal(keys.length, 3);
+  });
+
+  it("falls back to oldest-live when nothing is dead", () => {
+    assert.equal(chooseEvictionKey(["conv:a", "conv:b"], new Set()), "conv:a");
+    assert.equal(chooseEvictionKey(["conv:a", "conv:b"], new Set(["conv:missing"])), "conv:a");
+  });
+});
+
+describe("evict-dead-first at create time (T-0017)", () => {
+  const deps = { baseUrl: "http://127.0.0.1:9", password: "", directory: "D:\\work" };
+  const model = { id: "m", providerID: "p", pickerId: "m" };
+
+  /** Stub `fetch` so `createSession` succeeds without a server. */
+  async function withFetchStub(sessionId: string, run: () => Promise<void>): Promise<void> {
+    const realFetch = globalThis.fetch;
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async () =>
+      new Response(JSON.stringify({ data: { id: sessionId } }), { status: 200 });
+    try {
+      await run();
+    } finally {
+      (globalThis as unknown as Record<string, unknown>)["fetch"] = realFetch;
+    }
+  }
+
+  it("cap hit with dead entries present drops dead first, live kept, no burial", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:live", { sessionId: "ses_live", modelKey: "m" }],
+        ["conv:doomed", { sessionId: "ses_doomed", modelKey: "m" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    map.markDead("conv:doomed");
+    await withFetchStub("ses_new", async () => {
+      const id = await map.getOrCreate("conv:new", deps, model);
+      assert.equal(id, "ses_new");
+    });
+    assert.equal(map.peek("conv:live"), "ses_live");
+    assert.equal(map.peek("conv:new"), "ses_new");
+    assert.equal(map.peek("conv:doomed"), undefined);
+    assert.deepEqual(map.orphanedSessions(), [], "gone-confirmed dead eviction buries nothing");
+  });
+
+  it("cap hit with no dead entries evicts oldest-live and buries it", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:old", { sessionId: "ses_old", modelKey: "m" }],
+        ["conv:keep", { sessionId: "ses_keep", modelKey: "m" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    await withFetchStub("ses_new", async () => {
+      const id = await map.getOrCreate("conv:new", deps, model);
+      assert.equal(id, "ses_new");
+    });
+    assert.equal(map.peek("conv:old"), undefined);
+    assert.equal(map.peek("conv:keep"), "ses_keep");
+    assert.deepEqual(map.orphanedSessions(), ["ses_old"]);
+  });
+
+  it("create stores the workspace directory on the entry", async () => {
+    const map = new OctSessionMap(fakeStore({}), 5);
+    await withFetchStub("ses_dir", async () => {
+      await map.getOrCreate("conv:d", { ...deps, directory: "D:\\work\\proj" }, model);
+    });
+    assert.deepEqual(map.snapshot(), [
+      { key: "conv:d", sessionId: "ses_dir", modelKey: "m", directory: "D:\\work\\proj" },
+    ]);
+  });
+});
+
+describe("directory restore compat (T-0017)", () => {
+  it("old v1 rows without directory restore fine (group unknown)", () => {
+    const map = new OctSessionMap(
+      fakeStore({
+        "oct.conversationSessions.v1": [
+          ["conv:a", { sessionId: "ses_aaa", modelKey: "m1" }],
+          ["conv:b", { sessionId: "ses_bbb", modelKey: "m1", directory: "D:\\work\\proj" }],
+          ["conv:c", { sessionId: "ses_ccc", modelKey: "m1", directory: 42 }],
+        ],
+      }),
+    );
+    assert.equal(map.size(), 3);
+    const snap = map.snapshot();
+    assert.deepEqual(snap.find((e) => e.key === "conv:a"), { key: "conv:a", sessionId: "ses_aaa", modelKey: "m1" });
+    assert.deepEqual(snap.find((e) => e.key === "conv:b"), {
+      key: "conv:b",
+      sessionId: "ses_bbb",
+      modelKey: "m1",
+      directory: "D:\\work\\proj",
+    });
+    assert.deepEqual(snap.find((e) => e.key === "conv:c"), { key: "conv:c", sessionId: "ses_ccc", modelKey: "m1" });
+    const groups = groupSnapshotsByDirectory(snap);
+    assert.deepEqual(groups.map((g) => g.directory), ["D:\\work\\proj", UNKNOWN_DIRECTORY_GROUP]);
+  });
+});
+
+describe("groupSnapshotsByDirectory (T-0017)", () => {
+  it("groups by directory with unknown last and keeps entry order", () => {
+    const entries = [
+      { key: "conv:1", sessionId: "ses_1", modelKey: "m", directory: "D:\\b" },
+      { key: "conv:2", sessionId: "ses_2", modelKey: "m" },
+      { key: "conv:3", sessionId: "ses_3", modelKey: "m", directory: "D:\\a" },
+      { key: "conv:4", sessionId: "ses_4", modelKey: "m", directory: "D:\\b" },
+    ];
+    const groups = groupSnapshotsByDirectory(entries);
+    assert.deepEqual(groups.map((g) => g.directory), ["D:\\a", "D:\\b", UNKNOWN_DIRECTORY_GROUP]);
+    assert.deepEqual(groups[1].entries.map((e) => e.key), ["conv:1", "conv:4"]);
+  });
+
+  it("stays readable at 100+ mapped entries", () => {
+    const entries = Array.from({ length: 120 }, (_, i) => ({
+      key: `conv:${i}`,
+      sessionId: `ses_${i}`,
+      modelKey: "m",
+      directory: i % 10 === 0 ? undefined : `D:\\work\\proj${i % 3}`,
+    }));
+    const groups = groupSnapshotsByDirectory(entries);
+    assert.equal(groups.length, 4);
+    assert.equal(groups[groups.length - 1].directory, UNKNOWN_DIRECTORY_GROUP);
+    assert.equal(groups.reduce((n, g) => n + g.entries.length, 0), 120);
+    assert.ok(groups.every((g) => g.entries.length >= 12), "every group carries its share with an age slot");
+  });
+});
+
+describe("sessionCreatedMs + formatSessionAge (T-0017)", () => {
+  it("reads the live time.created millis shape", () => {
+    const live = {
+      id: "ses_x",
+      time: { created: 1791191608803, updated: 1791191614193 },
+      title: "Starting task t-0017",
+      location: { directory: "D:\\htdocs2\\opencode-for-copilot" },
+    };
+    assert.equal(sessionCreatedMs(live), 1791191608803);
+  });
+
+  it("tolerates ISO strings and rejects garbage", () => {
+    assert.equal(sessionCreatedMs({ time: { created: "2026-10-05T10:00:00.000Z" } }), Date.parse("2026-10-05T10:00:00.000Z"));
+    assert.equal(sessionCreatedMs({ time: {} }), undefined);
+    assert.equal(sessionCreatedMs({}), undefined);
+    assert.equal(sessionCreatedMs(null), undefined);
+    assert.equal(sessionCreatedMs({ time: { created: -5 } }), undefined);
+  });
+
+  it("formats ages compactly", () => {
+    const now = 1_000_000_000_000;
+    assert.equal(formatSessionAge(now - 30_000, now), "30s");
+    assert.equal(formatSessionAge(now - 12 * 60_000, now), "12m");
+    assert.equal(formatSessionAge(now - 5 * 3_600_000, now), "5h");
+    assert.equal(formatSessionAge(now - 3 * 86_400_000, now), "3d");
+    assert.equal(formatSessionAge(now - 21 * 86_400_000, now), "3w");
+    assert.equal(formatSessionAge(undefined, now), undefined);
+    assert.equal(formatSessionAge(now + 60_000, now), undefined);
   });
 });

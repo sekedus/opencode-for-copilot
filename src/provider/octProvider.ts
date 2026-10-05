@@ -55,7 +55,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
   }
 
   /** Snapshot of the conversation→session map for status/diagnostics. */
-  mappedSessions(): Array<{ key: string; sessionId: string; modelKey: string }> {
+  mappedSessions(): Array<{ key: string; sessionId: string; modelKey: string; directory?: string }> {
     return this.sessions.snapshot();
   }
 

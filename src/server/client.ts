@@ -176,8 +176,9 @@ export interface SessionListQuery {
 /**
  * `GET /api/session` — list sessions (newest first by default).
  * Returns the `data` page only; callers needing full history must follow
- * `cursor.next` themselves. T-0007 uses one page (limit 100) for the status
- * list — the conversation map caps at 50, so a single page covers it.
+ * `cursor.next` themselves. T-0017 uses one page (limit 500) for the status
+ * list — the conversation map caps at 200, so a single page covers it plus
+ * the user's unmapped CLI sessions.
  * No directory filter by default: filtering would hide sessions from other
  * directories and cause false prune positives in the status pass.
  */

@@ -12,9 +12,13 @@ import { messageText } from "./messages";
  *   (stable across turns, distinct across chats), else an explicit id from
  *   provider options when supplied, else a hash of
  *   (workspace + model + first message).
- * - LRU cap (`oct.maxSessions`, default 50): evicting a key only forgets
+ * - LRU cap (`oct.maxSessions`, default 200): evicting a key only forgets
  *   the mapping — sessions are never deleted on the hot path (dead entries
- *   are pruned via the status command). Dropped-but-possibly-live session
+ *   are pruned via the status command). When the cap is hit at create time,
+ *   entries already known dead (conversation flagged by a prior 404 via
+ *   `markDead`) go first without a server round trip — they are
+ *   gone-confirmed, so nothing joins the graveyard — then oldest-live as
+ *   before (T-0017). Dropped-but-possibly-live session
  *   ids are remembered in the orphan graveyard (T-0016) for the explicit
  *   opt-in cleanup command; nothing is ever deleted automatically.
  * - One in-flight `getOrCreate` per key: concurrent turns share the promise.
@@ -26,7 +30,7 @@ import { messageText } from "./messages";
  */
 
 /** Default map cap; `oct.maxSessions` overrides it per `OctSessionMap` instance. */
-export const DEFAULT_MAX_SESSIONS = 50;
+export const DEFAULT_MAX_SESSIONS = 200;
 const STORAGE_KEY = "oct.conversationSessions.v1";
 /** Persisted set of conversation keys whose engine session was deleted
  *  mid-chat (T-0013 follow-up): later turns repeat the notice instead of
@@ -88,6 +92,131 @@ export interface SessionDeps {
 interface Entry {
   sessionId: string;
   modelKey: string;
+  /** Workspace directory at create time (T-0017, optional for v1 compat). */
+  directory?: string;
+}
+
+/**
+ * Eviction choice for a full map (T-0017, pure): oldest dead-flagged key
+ * first (known gone via a prior 404 — no server round trip, no graveyard),
+ * else oldest-live. `keysInOrder` is oldest-first (Map insertion order).
+ * Returns undefined when empty. Exported for unit tests; `create` owns I/O.
+ */
+export function chooseEvictionKey(
+  keysInOrder: Iterable<string>,
+  dead: ReadonlySet<string>,
+): string | undefined {
+  let oldest: string | undefined;
+  for (const key of keysInOrder) {
+    if (oldest === undefined) {
+      oldest = key;
+    }
+    if (dead.has(key)) {
+      return key;
+    }
+  }
+  return oldest;
+}
+
+/** Group label for map entries without a stored workspace directory. */
+export const UNKNOWN_DIRECTORY_GROUP = "unknown";
+
+/**
+ * Group map snapshots by workspace directory (T-0017, pure): entries keep
+ * their relative order within a group; groups sort by directory with
+ * "unknown" last. Exported for unit tests; the status command owns display.
+ */
+export function groupSnapshotsByDirectory<
+  T extends { key: string; sessionId: string; modelKey: string; directory?: string },
+>(entries: readonly T[]): Array<{ directory: string; entries: T[] }> {
+  const groups = new Map<string, T[]>();
+  for (const entry of entries) {
+    const dir = entry.directory && entry.directory.trim() ? entry.directory : UNKNOWN_DIRECTORY_GROUP;
+    const list = groups.get(dir);
+    if (list) {
+      list.push(entry);
+    } else {
+      groups.set(dir, [entry]);
+    }
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => {
+      if (a === UNKNOWN_DIRECTORY_GROUP) {
+        return 1;
+      }
+      if (b === UNKNOWN_DIRECTORY_GROUP) {
+        return -1;
+      }
+      return a.localeCompare(b);
+    })
+    .map(([directory, groupEntries]) => ({ directory, entries: groupEntries }));
+}
+
+/**
+ * Extract the engine session creation millis from a `listSessions` item
+ * (T-0017). Live shape (opencode v2.0.21, verified 2026-10-05):
+ * `time: { created: <millis>, updated: <millis>, idle?: <millis> }`.
+ * Tolerates ISO-string dates; anything else yields undefined (age unknown).
+ */
+export function sessionCreatedMs(info: unknown): number | undefined {
+  if (typeof info !== "object" || info === null) {
+    return undefined;
+  }
+  const time = (info as Record<string, unknown>)["time"];
+  if (typeof time !== "object" || time === null) {
+    return undefined;
+  }
+  const created = (time as Record<string, unknown>)["created"];
+  if (typeof created === "number" && Number.isFinite(created) && created > 0) {
+    return Math.floor(created);
+  }
+  if (typeof created === "string" && created.trim()) {
+    const parsed = Date.parse(created);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Human age from engine creation millis (T-0017, pure): `45s` / `12m` /
+ * `5h` / `3d` / `2w` / `4mo` / `1y`. Returns undefined when the timestamp
+ * is missing or in the future (caller prints "age unknown").
+ */
+export function formatSessionAge(createdMs: unknown, nowMs: number = Date.now()): string | undefined {
+  if (typeof createdMs !== "number" || !Number.isFinite(createdMs) || createdMs <= 0) {
+    return undefined;
+  }
+  const diffMs = nowMs - createdMs;
+  if (diffMs < 0) {
+    return undefined;
+  }
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) {
+    return `${hours}h`;
+  }
+  const days = Math.floor(hours / 24);
+  if (days < 14) {
+    return `${days}d`;
+  }
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9) {
+    return `${weeks}w`;
+  }
+  const months = Math.floor(days / 30);
+  if (months < 12) {
+    return `${months}mo`;
+  }
+  return `${Math.floor(days / 365)}y`;
 }
 
 function hashKey(parts: string[]): string {
@@ -465,10 +594,14 @@ export class OctSessionMap {
         if (typeof sessionId !== "string" || !sessionId || typeof modelKey !== "string" || !modelKey) {
           continue;
         }
+        // T-0017: `directory` is optional — v1 rows without it restore fine
+        // (group "unknown"). Non-string values are dropped, never crash.
+        const rawDir = record["directory"];
+        const directory = typeof rawDir === "string" && rawDir.trim() ? rawDir : undefined;
         if (this.entries.size >= this.maxEntries) {
           break;
         }
-        this.entries.set(key, { sessionId, modelKey });
+        this.entries.set(key, directory === undefined ? { sessionId, modelKey } : { sessionId, modelKey, directory });
         this.unverified.add(key);
         restored++;
       }
@@ -524,11 +657,12 @@ export class OctSessionMap {
   }
 
   /** Snapshot of the conversation→session map for status/diagnostics. */
-  snapshot(): Array<{ key: string; sessionId: string; modelKey: string }> {
+  snapshot(): Array<{ key: string; sessionId: string; modelKey: string; directory?: string }> {
     return [...this.entries.entries()].map(([key, entry]) => ({
       key,
       sessionId: entry.sessionId,
       modelKey: entry.modelKey,
+      ...(entry.directory === undefined ? {} : { directory: entry.directory }),
     }));
   }
 
@@ -656,16 +790,25 @@ export class OctSessionMap {
       directory: deps.directory || undefined,
       model: { id: model.id, providerID: model.providerID },
     });
-    const entry: Entry = { sessionId: info.id, modelKey: model.pickerId };
+    const dir = deps.directory && deps.directory.trim() ? deps.directory : undefined;
+    const entry: Entry = dir === undefined ? { sessionId: info.id, modelKey: model.pickerId } : { sessionId: info.id, modelKey: model.pickerId, directory: dir };
     this.entries.set(key, entry);
     while (this.entries.size > this.maxEntries) {
-      const oldest = this.entries.keys().next().value as string | undefined;
-      if (!oldest) {
+      const victim = chooseEvictionKey(this.entries.keys(), this.dead);
+      if (!victim) {
         break;
       }
-      const evictedId = this.entries.get(oldest)?.sessionId;
-      this.entries.delete(oldest);
-      this.unverified.delete(oldest);
+      if (this.dead.has(victim)) {
+        // Known gone (prior 404): drop without a graveyard entry — there is
+        // nothing alive to clean up later.
+        this.entries.delete(victim);
+        this.unverified.delete(victim);
+        logLine(`Session map evicted dead conversation (cap ${this.maxEntries}).`);
+        continue;
+      }
+      const evictedId = this.entries.get(victim)?.sessionId;
+      this.entries.delete(victim);
+      this.unverified.delete(victim);
       if (evictedId) {
         this.bury(evictedId);
       }

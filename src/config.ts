@@ -30,7 +30,7 @@ function getConfig(): vscode.WorkspaceConfiguration {
 
 const DEFAULT_PERMISSION_TIMEOUT_MS = 60_000;
 /** Default conversation→session map cap (overridden by `oct.maxSessions`). */
-export const DEFAULT_MAX_SESSIONS = 50;
+export const DEFAULT_MAX_SESSIONS = 200;
 
 export function readSettings(): OctSettings {
   const cfg = getConfig();

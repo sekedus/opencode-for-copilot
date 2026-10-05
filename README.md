@@ -17,7 +17,7 @@ Opencode runs as a background local engine; Copilot Chat stays the GUI; this ext
 - Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only (verified against 2.0.21).
 - Disabled by default; explicit `OCT: Enable` + reload required (background RAM cost).
 - Pick an `OCT` model in the Copilot model picker; multi-turn conversations reuse one opencode session.
-- Engine sessions carry titles derived from the first user message (empty/attachment-only → unique `OCT: <key8> <MM-DD HH:mm>` fallback); `OCT: Show Status` lists mapped conversations with titles and prunes dead entries.
+- Engine sessions carry titles derived from the first user message (empty/attachment-only → unique `OCT: <key8> <MM-DD HH:mm>` fallback); `OCT: Show Status` lists mapped conversations grouped by workspace directory with per-entry ages and prunes dead entries.
 
 ## Setup
 
@@ -38,7 +38,7 @@ Press `F5` for the Extension Development Host, then run `OCT: Enable Opencode En
 
 Or install the packaged artifact: `npm run package`, then `code --install-extension opencode-for-copilot-0.1.0.vsix`.
 
-Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`), `oct.permissionTimeoutMs` (approval no-answer timeout, default 60000), `oct.callbackToken` (stable callback token for external servers; empty = per-window random), `oct.maxSessions` (mapped-conversation cap, default 50).
+Settings: `oct.enabled`, `oct.opencodeUrl` (empty = managed `opencode serve`), `oct.opencodeBinary`, `oct.opencodePassword` (fallback to `OPENCODE_SERVER_PASSWORD`), `oct.permissionTimeoutMs` (approval no-answer timeout, default 60000), `oct.callbackToken` (stable callback token for external servers; empty = per-window random), `oct.maxSessions` (mapped-conversation cap, default 200; entries for deleted sessions evicted first, then oldest).
 
 ## Tool bridge
 

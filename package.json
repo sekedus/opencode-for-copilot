@@ -88,9 +88,9 @@
         },
         "oct.maxSessions": {
           "type": "integer",
-          "default": 50,
+          "default": 200,
           "minimum": 1,
-          "markdownDescription": "Maximum Copilot conversations mapped to opencode sessions (oldest mappings evicted first). Requires a window reload after changing."
+          "markdownDescription": "Maximum Copilot conversations mapped to opencode sessions (entries for deleted sessions evicted first, then oldest). Requires a window reload after changing."
         }
       }
     },

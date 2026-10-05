@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-start, deleted-session UX), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
+M3 — COMPLETE (2026-10-05): session management (configurable cap 200, prune-on-start, deleted-session UX, orphan cleanup, evict-dead-first + status grouping), model display (`OCT / <name>` + vision), tool priority (Copilot primary, engine fallback).
 
 ## Tasks
 
@@ -25,6 +25,7 @@ M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-
 - `T-0014` — Model name `OCT / <name>` + vision capability — COMPLETE (verified 2026-10-04: branding + `imageInput`; `tsc` 0, `npm test` 48/48).
 - `T-0015` — Copilot tools primary, engine tools fallback — COMPLETE (verified 2026-10-05: `TOOL_NOTICE` removed, engine fallback; `tsc` 0, `npm test` 48/48).
 - `T-0016` — Opt-in orphaned engine session cleanup — COMPLETE (verified 2026-10-05: graveyard + `oct.cleanupOrphans`; `tsc` 0, `npm test` 58/58).
+- `T-0017` — Cap tuning: default, evict-dead-first, status grouping — COMPLETE (verified 2026-10-05: default 200, dead-first eviction, directory groups + ages; `tsc` 0, `npm test` 73/73).
 
 ## Future Milestones
 

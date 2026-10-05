@@ -50,6 +50,10 @@ Engine-native actions (edit/write/shell under the engine's ask policy) pause the
 - External mode (`oct.opencodeUrl`) needs manual install: copy `plugin/oct-tools` to the server, add its absolute path to the server's `plugins` config, and export `OCT_CALLBACK_URL` (from `OCT: Show Status`) plus `OCT_CALLBACK_TOKEN` matching `oct.callbackToken` (set one — the default per-window token cannot be pasted into a persistent server env). Without the plugin, engine-native tools are the fallback (no text-only notice, no crash).
 - Text-only results: image-producing tools return a placeholder (multimodal deferred); a circuit breaker stops runaway identical-call loops with a proceed-with-what-you-have instruction.
 
+## Orphaned engine sessions
+
+Dropping a mapping (LRU eviction, forget) never deletes the engine session — only the map entry. Sessions OCT mapped and later dropped without a 404 confirming them gone are remembered in a persisted graveyard (cap 200). `OCT: Delete Orphaned Engine Sessions` resolves each id (already-gone entries drop silently), shows a dry-run list, then asks for explicit confirmation before deleting; cancel deletes nothing. Sessions that were never in the map (your own CLI sessions) are never candidates.
+
 ## Workflow entry points
 
 - `AGENTS.md` — project operating rules.

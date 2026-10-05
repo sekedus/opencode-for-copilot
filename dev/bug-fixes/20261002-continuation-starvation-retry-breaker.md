@@ -119,6 +119,7 @@ model will chase the unsatisfiable want forever.
 
 ## Follow-up
 
-- EDH redo (Step 2) with the image workspace.
+- [x] EDH redo (Step 2) with the image workspace — DONE 2026-10-05 (parallel `view_image` batch resolved with no starvation; breaker still never triggered live).
 - If image tools matter to users, consider a multimodal follow-up task that
-  ferries `LanguageModelDataPart` images back instead of placeholder text.
+  ferries `LanguageModelDataPart` images back instead of placeholder text
+  (confirmed live 2026-10-05: engine-blind via bridge; parked as PL-0001).

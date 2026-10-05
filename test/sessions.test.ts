@@ -10,7 +10,9 @@ import {
   fallbackSessionTitle,
   isSessionGoneError,
   sessionTitleFromMessages,
+  trackOrphaned,
   DEFAULT_SESSION_TITLE,
+  MAX_ORPHANED_SESSIONS,
 } from "../src/provider/sessions";
 import { OctHttpError } from "../src/server/client";
 
@@ -295,5 +297,85 @@ describe("dead conversations", () => {
     const map = new OctSessionMap(fakeStore({ "oct.deadConversations.v1": ["conv:a", 42, "", null] }));
     assert.equal(map.isDead("conv:a"), true);
     assert.equal(map.isDead("42"), false);
+  });
+});
+
+describe("trackOrphaned", () => {
+  it("appends new ids oldest-first", () => {
+    assert.deepEqual(trackOrphaned([], "ses_a"), ["ses_a"]);
+    assert.deepEqual(trackOrphaned(["ses_a"], "ses_b"), ["ses_a", "ses_b"]);
+  });
+
+  it("ignores empty ids and duplicates", () => {
+    assert.deepEqual(trackOrphaned(["ses_a"], ""), ["ses_a"]);
+    assert.deepEqual(trackOrphaned(["ses_a", "ses_b"], "ses_a"), ["ses_a", "ses_b"]);
+  });
+
+  it("evicts oldest-first at the cap", () => {
+    assert.equal(MAX_ORPHANED_SESSIONS, 200);
+    const full = Array.from({ length: 200 }, (_, i) => `ses_${i}`);
+    const next = trackOrphaned(full, "ses_new");
+    assert.equal(next.length, 200);
+    assert.equal(next[0], "ses_1");
+    assert.equal(next[199], "ses_new");
+  });
+});
+
+describe("orphan graveyard", () => {
+  const stored = (): Array<[string, { sessionId: string; modelKey: string }]> => [
+    ["conv:a", { sessionId: "ses_aaa", modelKey: "m1" }],
+  ];
+
+  it("forget buries the dropped session id", () => {
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored() }));
+    map.forget("conv:a");
+    assert.deepEqual(map.orphanedSessions(), ["ses_aaa"]);
+  });
+
+  it("forget with gone:true skips the graveyard (404-confirmed)", () => {
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored() }));
+    map.forget("conv:a", { gone: true });
+    assert.deepEqual(map.orphanedSessions(), []);
+  });
+
+  it("forget of an unknown key buries nothing", () => {
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored() }));
+    map.forget("conv:missing");
+    assert.deepEqual(map.orphanedSessions(), []);
+  });
+
+  it("pruneBySessionIds buries nothing (ids are 404-confirmed)", () => {
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored() }));
+    map.pruneBySessionIds(new Set(["ses_aaa"]));
+    assert.deepEqual(map.orphanedSessions(), []);
+  });
+
+  it("clearOrphaned drops only resolved ids", () => {
+    const seeded = new OctSessionMap(
+      fakeStore({ "oct.orphanedSessions.v1": ["ses_1", "ses_2", "ses_3"] }),
+    );
+    assert.deepEqual(seeded.orphanedSessions(), ["ses_1", "ses_2", "ses_3"]);
+    seeded.clearOrphaned(["ses_2", "ses_missing"]);
+    assert.deepEqual(seeded.orphanedSessions(), ["ses_1", "ses_3"]);
+    seeded.clearOrphaned([]);
+    assert.deepEqual(seeded.orphanedSessions(), ["ses_1", "ses_3"]);
+  });
+
+  it("graveyard persists across restore", () => {
+    const store = fakeStore({ "oct.conversationSessions.v1": stored() });
+    const first = new OctSessionMap(store);
+    first.forget("conv:a");
+    assert.deepEqual(first.orphanedSessions(), ["ses_aaa"]);
+    const second = new OctSessionMap(store);
+    assert.deepEqual(second.orphanedSessions(), ["ses_aaa"]);
+    second.clearOrphaned(["ses_aaa"]);
+    assert.deepEqual(new OctSessionMap(store).orphanedSessions(), []);
+  });
+
+  it("restore ignores garbage graveyard rows", () => {
+    const seeded = new OctSessionMap(
+      fakeStore({ "oct.orphanedSessions.v1": ["ses_aaa", 42, "", null, "ses_bbb"] }),
+    );
+    assert.deepEqual(seeded.orphanedSessions(), ["ses_aaa", "ses_bbb"]);
   });
 });

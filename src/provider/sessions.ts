@@ -14,7 +14,9 @@ import { messageText } from "./messages";
  *   (workspace + model + first message).
  * - LRU cap (`oct.maxSessions`, default 50): evicting a key only forgets
  *   the mapping — sessions are never deleted on the hot path (dead entries
- *   are pruned via the status command).
+ *   are pruned via the status command). Dropped-but-possibly-live session
+ *   ids are remembered in the orphan graveyard (T-0016) for the explicit
+ *   opt-in cleanup command; nothing is ever deleted automatically.
  * - One in-flight `getOrCreate` per key: concurrent turns share the promise.
  * - Persistence: entries are saved to globalState on every mutation and
  *   reloaded on construction. A restored entry is verified with
@@ -30,6 +32,34 @@ const STORAGE_KEY = "oct.conversationSessions.v1";
  *  mid-chat (T-0013 follow-up): later turns repeat the notice instead of
  *  silently opening an amnesiac session. */
 const DEAD_KEY = "oct.deadConversations.v1";
+/** Persisted graveyard of possibly-live engine session ids whose mapping
+ *  was dropped (T-0016): the allowlist for the explicit opt-in cleanup
+ *  command. Only ids that were never confirmed gone belong here. */
+const GRAVEYARD_KEY = "oct.orphanedSessions.v1";
+/** Graveyard bound: dropping a mapping must never grow storage without limit. */
+export const MAX_ORPHANED_SESSIONS = 200;
+
+/**
+ * Pure graveyard append (T-0016): oldest-first, capped, duplicate-free.
+ * Empty ids are ignored. Exported for unit tests; the map owns persistence.
+ */
+export function trackOrphaned(
+  current: readonly string[],
+  sessionId: string,
+  cap: number = MAX_ORPHANED_SESSIONS,
+): string[] {
+  if (!sessionId) {
+    return [...current];
+  }
+  if (current.includes(sessionId)) {
+    return [...current];
+  }
+  const next = [...current, sessionId];
+  while (next.length > cap) {
+    next.shift();
+  }
+  return next;
+}
 
 /**
  * True when a server error means the session is gone (HTTP 404), as opposed
@@ -221,6 +251,9 @@ export class OctSessionMap {
   private readonly unverified = new Set<string>();
   /** Conversations whose engine session was deleted mid-chat (persisted). */
   private readonly dead = new Set<string>();
+  /** Possibly-live engine session ids whose mapping was dropped (persisted,
+   *  oldest-first, capped). Allowlist for the explicit cleanup command. */
+  private readonly orphaned: string[] = [];
 
   constructor(private readonly store?: vscode.Memento, maxEntries: number = DEFAULT_MAX_SESSIONS) {
     this.maxEntries =
@@ -229,6 +262,7 @@ export class OctSessionMap {
         : DEFAULT_MAX_SESSIONS;
     this.restore();
     this.restoreDead();
+    this.restoreOrphaned();
   }
 
   size(): number {
@@ -253,10 +287,17 @@ export class OctSessionMap {
    * Used when the mapped session is poisoned: some engine failures (e.g.
    * `Instruction initialization blocked`) are recorded against session state
    * that can never succeed on retry, so reusing the id would fail forever.
+   * The dropped session may still be alive server-side, so its id joins the
+   * orphan graveyard — unless the caller already knows it is gone (404),
+   * e.g. the T-0013 mid-turn recovery path (`{ gone: true }`).
    */
-  forget(key: string): void {
+  forget(key: string, opts?: { gone?: boolean }): void {
+    const sessionId = this.entries.get(key)?.sessionId;
     if (this.entries.delete(key)) {
       this.unverified.delete(key);
+      if (sessionId && !opts?.gone) {
+        this.bury(sessionId);
+      }
       this.persist();
       logLine(`Conversation ${key} mapping dropped; the next turn will create a fresh session.`);
     }
@@ -287,6 +328,43 @@ export class OctSessionMap {
   /** True when the conversation's engine session was deleted mid-chat. */
   isDead(key: string): boolean {
     return this.dead.has(key);
+  }
+
+  /** Snapshot of the orphan graveyard (oldest-first) for the cleanup command. */
+  orphanedSessions(): string[] {
+    return [...this.orphaned];
+  }
+
+  /**
+   * Drop graveyard ids after the cleanup command resolved them (deleted or
+   * already gone). Ids still present server-side stay listed on failure.
+   */
+  clearOrphaned(sessionIds: readonly string[]): void {
+    if (sessionIds.length === 0) {
+      return;
+    }
+    const drop = new Set(sessionIds);
+    const before = this.orphaned.length;
+    for (let i = this.orphaned.length - 1; i >= 0; i--) {
+      if (drop.has(this.orphaned[i])) {
+        this.orphaned.splice(i, 1);
+      }
+    }
+    if (this.orphaned.length !== before) {
+      this.persistOrphaned();
+    }
+  }
+
+  /** Remember a possibly-live dropped session id (bounded, persisted). */
+  private bury(sessionId: string): void {
+    if (!sessionId || this.orphaned.includes(sessionId)) {
+      return;
+    }
+    const next = trackOrphaned(this.orphaned, sessionId);
+    this.orphaned.length = 0;
+    this.orphaned.push(...next);
+    this.persistOrphaned();
+    logLine(`Session ${sessionId} orphaned (mapping dropped); listed for opt-in cleanup.`);
   }
 
   /** Load persisted dead-conversation keys (tolerates missing/garbage). */
@@ -320,6 +398,42 @@ export class OctSessionMap {
       });
     } catch (error) {
       logLine(`Dead-conversation persist failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Load persisted graveyard ids (tolerates missing/garbage; capped). */
+  private restoreOrphaned(): void {
+    if (!this.store) {
+      return;
+    }
+    try {
+      const raw: unknown = this.store.get(GRAVEYARD_KEY);
+      if (!Array.isArray(raw)) {
+        return;
+      }
+      for (const item of raw) {
+        if (typeof item === "string" && item) {
+          const next = trackOrphaned(this.orphaned, item);
+          this.orphaned.length = 0;
+          this.orphaned.push(...next);
+        }
+      }
+    } catch (error) {
+      logLine(`Orphan-graveyard restore failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Best-effort persist of the graveyard ids (fire-and-forget). */
+  private persistOrphaned(): void {
+    if (!this.store) {
+      return;
+    }
+    try {
+      void Promise.resolve(this.store.update(GRAVEYARD_KEY, [...this.orphaned])).catch((error: unknown) => {
+        logLine(`Orphan-graveyard persist failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    } catch (error) {
+      logLine(`Orphan-graveyard persist failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -390,6 +504,8 @@ export class OctSessionMap {
    * Drop every mapping whose session id is in `deadIds` (operator-initiated
    * prune during the status pass). Returns the pruned conversation keys.
    * Non-dead entries are untouched; persistence follows only when changed.
+   * No graveyard entries: callers pass only ids already confirmed gone
+   * (404), so there is nothing alive to clean up later.
    */
   pruneBySessionIds(deadIds: Set<string>): string[] {
     const pruned: string[] = [];
@@ -547,8 +663,12 @@ export class OctSessionMap {
       if (!oldest) {
         break;
       }
+      const evictedId = this.entries.get(oldest)?.sessionId;
       this.entries.delete(oldest);
       this.unverified.delete(oldest);
+      if (evictedId) {
+        this.bury(evictedId);
+      }
       logLine(`Session map evicted oldest conversation (cap ${this.maxEntries}).`);
     }
     this.persist();

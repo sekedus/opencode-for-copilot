@@ -24,6 +24,7 @@ M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-
 - `T-0013` — Deleted session mid-turn tells user to start a new chat — COMPLETE (verified 2026-10-04: typed 404 + one-sentence throw; `tsc` 0, `npm test` 38/38).
 - `T-0014` — Model name `OCT / <name>` + vision capability — COMPLETE (verified 2026-10-04: branding + `imageInput`; `tsc` 0, `npm test` 48/48).
 - `T-0015` — Copilot tools primary, engine tools fallback — COMPLETE (verified 2026-10-05: `TOOL_NOTICE` removed, engine fallback; `tsc` 0, `npm test` 48/48).
+- `T-0016` — Opt-in orphaned engine session cleanup — COMPLETE (verified 2026-10-05: graveyard + `oct.cleanupOrphans`; `tsc` 0, `npm test` 58/58).
 
 ## Future Milestones
 

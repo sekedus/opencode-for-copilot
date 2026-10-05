@@ -225,6 +225,29 @@ export async function updateSession(
   await requestJson(baseUrl, password, "PATCH", `/api/session/${encodeURIComponent(sessionId)}`, body, timeoutMs);
 }
 
+/**
+ * `DELETE /api/session/:id` — delete an engine session (T-0016 orphan
+ * cleanup; never called on the hot path).
+ * Returns `"gone"` when the session was already deleted (404 is benign);
+ * throws on any other failure so the caller keeps the graveyard entry.
+ */
+export async function deleteSession(
+  baseUrl: string,
+  password: string,
+  sessionId: string,
+  timeoutMs = 15000,
+): Promise<"deleted" | "gone"> {
+  try {
+    await requestJson(baseUrl, password, "DELETE", `/api/session/${encodeURIComponent(sessionId)}`, undefined, timeoutMs);
+    return "deleted";
+  } catch (error) {
+    if (error instanceof OctHttpError && error.status === 404) {
+      return "gone";
+    }
+    throw error;
+  }
+}
+
 /** `POST /api/session/:id/model` — pin the session to the picker model. */
 export async function switchSessionModel(
   baseUrl: string,

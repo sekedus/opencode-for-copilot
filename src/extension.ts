@@ -5,7 +5,7 @@ import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
-import { getSession, listSessions } from "./server/client";
+import { deleteSession, getSession, listSessions } from "./server/client";
 import { PermissionTranslator } from "./provider/permissions";
 import { isSessionGoneError } from "./provider/sessions";
 import { ToolShuttle } from "./provider/tools";
@@ -119,7 +119,6 @@ async function statusCommand(): Promise<void> {
   for (const line of lines) {
     logLine(line);
   }
-  vscode.window.showInformationMessage(lines.join("\n"));
 }
 
 /** Shorten a conversation key for the status list (`conv:<id>` / `hash:<hex>`). */
@@ -222,6 +221,97 @@ async function refreshModelsCommand(): Promise<void> {
   vscode.window.showInformationMessage("OCT: refreshing models from the engine.");
 }
 
+/**
+ * Opt-in orphaned engine session cleanup (T-0016).
+ *
+ * The graveyard holds only engine sessions OCT mapped and later dropped
+ * (LRU eviction, forget) without a 404 confirming them gone — never the
+ * user's own CLI sessions. Flow: resolve each id (404 = already gone, drop
+ * silently; other errors = keep), dry-run list in the output channel, an
+ * explicit VS Code confirmation, then `DELETE` + graveyard removal on
+ * success-or-404. Nothing is ever deleted without the Delete action.
+ */
+async function cleanupOrphansCommand(): Promise<void> {
+  if (!chatProvider) {
+    vscode.window.showInformationMessage("OCT: provider is not active. Enable OCT and reload first.");
+    return;
+  }
+  if (serverManager?.getState().status !== "connected") {
+    vscode.window.showInformationMessage("OCT: server is not connected. Nothing was deleted.");
+    return;
+  }
+  const { baseUrl, password } = chatProvider.serverTarget();
+  const listed = chatProvider.orphanedSessions();
+  if (listed.length === 0) {
+    logLine("Orphan cleanup: graveyard empty, nothing to do.");
+    vscode.window.showInformationMessage("OCT: no orphaned engine sessions. Nothing to do.");
+    return;
+  }
+  const alive: string[] = [];
+  const alreadyGone: string[] = [];
+  const unreached: string[] = [];
+  for (const sessionId of listed) {
+    try {
+      await getSession(baseUrl, password, sessionId);
+      alive.push(sessionId);
+    } catch (error) {
+      if (isSessionGoneError(error)) {
+        alreadyGone.push(sessionId);
+      } else {
+        unreached.push(sessionId);
+        logLine(`Orphan check failed for ${sessionId} (kept): ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+  chatProvider.clearOrphaned(alreadyGone);
+  getOutputChannel().show(true);
+  const preview = alive.slice(0, 10).join(", ");
+  logLine(
+    `Orphan cleanup dry-run: ${String(alive.length)} candidate(s)` +
+      (preview ? `: ${preview}` : "") +
+      (alive.length > 10 ? `, …and ${String(alive.length - 10)} more` : "") +
+      `; already-gone ${String(alreadyGone.length)}, unreachable ${String(unreached.length)} (kept).`,
+  );
+  if (alive.length === 0) {
+    const nothing = `OCT: no live orphaned sessions (${String(alreadyGone.length)} already gone, ${String(unreached.length)} unreachable — kept). Nothing was deleted.`;
+    logLine(nothing);
+    vscode.window.showInformationMessage(nothing);
+    return;
+  }
+  const choice = await vscode.window.showWarningMessage(
+    `Delete ${String(alive.length)} orphaned engine session(s)? Only sessions OCT mapped and later dropped are candidates — your other engine sessions are never touched.`,
+    "Delete",
+    "Cancel",
+  );
+  if (choice !== "Delete") {
+    logLine("Orphan cleanup cancelled; deleted nothing.");
+    return;
+  }
+  let deleted = 0;
+  const goneLate: string[] = [];
+  const failed: string[] = [];
+  for (const sessionId of alive) {
+    try {
+      const outcome = await deleteSession(baseUrl, password, sessionId);
+      if (outcome === "deleted") {
+        deleted++;
+      } else {
+        goneLate.push(sessionId);
+      }
+    } catch (error) {
+      failed.push(sessionId);
+      logLine(`Orphan delete failed for ${sessionId} (kept): ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  chatProvider.clearOrphaned(alive.filter((id) => !failed.includes(id)));
+  const summary =
+    `Orphan cleanup: deleted ${String(deleted)}, already-gone ${String(alreadyGone.length + goneLate.length)}` +
+    `, failed ${String(failed.length)}${failed.length > 0 ? ` (${failed.join(", ")})` : ""}` +
+    `, unreachable ${String(unreached.length)} (kept).`;
+  logLine(summary);
+  vscode.window.showInformationMessage(`OCT: ${summary}`);
+}
+
 /** Wiring: gate + server lifecycle + chat provider registration. */
 export function activate(context: vscode.ExtensionContext): void {
   const settings = readSettings();
@@ -232,6 +322,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("oct.disable", disableCommand),
     vscode.commands.registerCommand("oct.status", statusCommand),
     vscode.commands.registerCommand("oct.refreshModels", refreshModelsCommand),
+    vscode.commands.registerCommand("oct.cleanupOrphans", cleanupOrphansCommand),
     { dispose: () => disposeOutputChannel() },
   );
 

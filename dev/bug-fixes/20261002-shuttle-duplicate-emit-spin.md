@@ -131,6 +131,6 @@ call — the spin was diagnosable only by absence of lines.
 
 ## Follow-up
 
-- EDH redo of Step 2 with the same workspace prompt; confirm spin is gone.
+- [x] EDH redo of Step 2 with the same workspace prompt; confirm spin is gone — DONE 2026-10-05 (image redo: every `paused` line paired with a `Tool result to engine` line, no spin).
 - Consider a per-session tool-call budget (abort after N unanswered pauses)
   if host result-less calls recur for other reasons.

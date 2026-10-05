@@ -64,6 +64,16 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     return this.sessions.pruneBySessionIds(deadSessionIds);
   }
 
+  /** Snapshot of the orphan graveyard for the opt-in cleanup command. */
+  orphanedSessions(): string[] {
+    return this.sessions.orphanedSessions();
+  }
+
+  /** Drop graveyard ids the cleanup command resolved (deleted or gone). */
+  clearOrphaned(sessionIds: readonly string[]): void {
+    this.sessions.clearOrphaned(sessionIds);
+  }
+
   /** Credentials for status/diagnostics passes. Never log the password. */
   serverTarget(): { baseUrl: string; password: string } {
     return { baseUrl: this.deps.baseUrl, password: this.deps.password };
@@ -237,7 +247,8 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
         // The engine session was deleted mid-conversation: drop the mapping
         // so nothing retries the dead id, and tell the user to start a new
         // chat (T-0013 — no silent recreate, no history replay).
-        this.sessions.forget(key);
+        // Already 404-confirmed gone: keep it out of the orphan graveyard.
+        this.sessions.forget(key, { gone: true });
         this.sessions.markDead(key);
         this.deps.translator.forget(sessionId);
         logLine(`Turn on ${sessionId} hit a deleted session (404); mapping dropped.`);

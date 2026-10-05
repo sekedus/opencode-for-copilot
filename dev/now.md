@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0015 COMPLETE — M2 done, M3 in progress; T-0015 verified-uncommitted; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0016 COMPLETE — M2 done, M3 in progress; T-0016 verified-uncommitted; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,12 +17,11 @@ M3 — IN PROGRESS (2026-10-03): session management (configurable cap, prune-on-
 
 ## Current Task
 
-None — T-0015 complete; T-0016/T-0017 scaffolding uncommitted.
+None — T-0016 complete; T-0017 scaffolding uncommitted.
 
 ## Current Step
 
-T-0015 COMPLETE 2026-10-05 (`tsc` 0, `npm test` 48/48, uncommitted; EDH Parts A/B/C green).
-Image redo 2026-10-05: mechanics PASS (no B-0003 spin, no B-0004 starvation, breaker still untriggered; Steps 3–8 green) — but `view_image` is engine-blind (placeholder-only results), parked as PL-0001 (uncommitted).
+T-0016 COMPLETE 2026-10-05 (`tsc` 0, `npm test` 58/58, uncommitted; command EDH green).
 
 ## Objective
 
@@ -30,7 +29,8 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0015 COMPLETE (20261005): `TOOL_NOTICE` removed, engine-tools fallback when bridge unavailable (Copilot primary unchanged, default-deny holds; `tsc` 0, `npm test` 48/48; EDH Parts A/B/C + image redo green). Uncommitted.
+- T-0016 COMPLETE (20261005): orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` (resolve → dry-run → Delete/Cancel, default off; `tsc` 0, `npm test` 58/58; command EDH green 2026-10-05). Uncommitted.
+- T-0015 COMPLETE (20261005): `TOOL_NOTICE` removed, engine-tools fallback when bridge unavailable (Copilot primary unchanged, default-deny holds; `tsc` 0, `npm test` 48/48; EDH Parts A/B/C + image redo green). Committed d1a4aa5.
 - T-0014 COMPLETE (20261004): `OCT / <name>` branding + `imageInput` from vision modality (`tsc` 0, `npm test` 48/48). Committed 403a186.
 - T-0013 COMPLETE (20261004): typed 404 preserved through admission + gone-branch (`forget` + one-sentence throw; `tsc` 0, `npm test` 42/42). Committed f0005cf.
 - T-0012 COMPLETE (20261004): per-id verify-and-prune shared by startup + status (`isSessionGoneError`, list demoted to titles; `tsc` 0, `npm test` 37/37). Committed 8c0f8a9.
@@ -59,7 +59,7 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Commit T-0015 (Task: ASK), then implement T-0016.
+Commit T-0016 (Task: ASK), then implement T-0017.
 
 ## Current Blocker
 
@@ -116,11 +116,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`403a186 feat: OCT model branding and vision capability` (T-0014 complete + verified). Worktree holds T-0015 (complete, uncommitted) + M3 scaffolding (T-0016..T-0017, roadmap) uncommitted.
+`d1a4aa5 feat: Copilot tools primary, engine tools fallback` (T-0015 only: 8 files). Worktree holds T-0016/T-0017 scaffolding + roadmap PLANNED lines + PL-0001 + this `now.md` bookkeeping.
 
 ## README Status
 
-CURRENT — tool priority (Copilot primary, engine fallback, T-0015, 2026-10-05) + `oct.maxSessions` setting (T-0011) + license section at bottom (T-0010, 2026-10-03) + session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
+CURRENT — orphan cleanup command (T-0016, 2026-10-05) + tool priority (Copilot primary, engine fallback, T-0015, 2026-10-05) + `oct.maxSessions` setting (T-0011) + license section at bottom (T-0010, 2026-10-03) + session titles (incl. unique `OCT: <key8> <MM-DD HH:mm>` fallback) + status list noted (2026-10-02, T-0007 complete).
 
 ## Important Context
 
@@ -132,8 +132,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0015 complete + verified, uncommitted (2026-10-05). Next: commit T-0015, then T-0016. No blocker.
+T-0016 complete 2026-10-05 (uncommitted; command EDH green). Next: T-0017 or commit T-0016. No blocker.
 
 ## Resume Instruction
 
-Read this file first. M3 is IN PROGRESS (T-0015 done; T-0016/T-0017 scaffolding uncommitted).
+Read this file first. M3 is IN PROGRESS (T-0016 done; T-0017 scaffolding uncommitted).

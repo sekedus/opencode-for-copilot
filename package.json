@@ -47,6 +47,10 @@
       {
         "command": "oct.refreshModels",
         "title": "OCT: Refresh Models"
+      },
+      {
+        "command": "oct.cleanupOrphans",
+        "title": "OCT: Delete Orphaned Engine Sessions"
       }
     ],
     "configuration": {

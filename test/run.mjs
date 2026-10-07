@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const files = ["sessions.test.js", "messages.test.js", "streaming.test.js", "models.test.js"].map((f) =>
+const files = ["sessions.test.js", "messages.test.js", "streaming.test.js", "models.test.js", "permissions.test.js"].map((f) =>
   path.join(root, "..", "out-test", "test", f),
 );
 

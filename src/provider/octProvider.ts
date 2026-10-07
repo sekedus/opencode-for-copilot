@@ -258,7 +258,6 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
         // Already 404-confirmed gone: keep it out of the orphan graveyard.
         this.sessions.forget(key, { gone: true });
         this.sessions.markDead(key);
-        this.deps.translator.forget(sessionId);
         logLine(`Turn on ${sessionId} hit a deleted session (404); mapping dropped.`);
         // Report as chat text (B-0005 denial precedent): throwing routes the
         // sentence through Copilot's error UI, which renders it twice with a
@@ -275,7 +274,6 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       // once on a fresh session (heals transient discovery failures).
       logLine(`Turn on ${sessionId} hit instruction-blocked; dropping the mapping and retrying once on a fresh session.`);
       this.sessions.forget(key);
-      this.deps.translator.forget(sessionId);
       const freshId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token, titleSeed);
       logLine(`Turn on ${freshId} (${model.id}, retry after instruction-blocked).`);
       try {

@@ -103,6 +103,34 @@ function killProcess(child: ChildProcess): Promise<void> {
 }
 
 /**
+ * Managed-mode ask-all engine permission (T-0020).
+ * Appended LAST so it overrides global + workspace files under the engine's
+ * last-match-wins evaluation; the `read` exception is applied in our
+ * translator, not here.
+ */
+export const MANAGED_ASK_ALL_PERMISSION = { action: "*", resource: "*", effect: "ask" };
+
+/**
+ * Return a copy of a config-content record with the ask-all rule present
+ * (appended last, deduped). Pure helper for unit tests; other keys untouched.
+ */
+export function withAskAllPermissions(record: Record<string, unknown>): Record<string, unknown> {
+  const permissions = Array.isArray(record["permissions"]) ? [...(record["permissions"] as unknown[])] : [];
+  const present = permissions.some(
+    (entry) =>
+      entry !== null &&
+      typeof entry === "object" &&
+      (entry as Record<string, unknown>)["action"] === "*" &&
+      (entry as Record<string, unknown>)["resource"] === "*" &&
+      (entry as Record<string, unknown>)["effect"] === "ask",
+  );
+  if (!present) {
+    permissions.push({ ...MANAGED_ASK_ALL_PERMISSION });
+  }
+  return { ...record, permissions };
+}
+
+/**
  * Owns the opencode v2 server lifecycle.
  *
  * - External mode: `oct.opencodeUrl` set — health-check only, never spawn/kill.
@@ -270,11 +298,16 @@ export class OctServerManager {
 
   /**
    * Build the `OPENCODE_CONFIG_CONTENT` payload that installs the bundled
-   * bridge plugin. Config documents MERGE across sources (plugin lists
-   * concatenate), so this adds the bridge without clobbering user plugins.
-   * When the user already exports `OPENCODE_CONFIG_CONTENT`, its other keys
-   * are preserved and our plugin path is appended (deduped).
-   * Returns undefined when no plugin dir applies (external mode / missing).
+   * bridge plugin and forces ask-all engine permissions (T-0020). Config
+   * documents MERGE across sources (plugin lists concatenate), so this adds
+   * the bridge without clobbering user plugins. When the user already exports
+   * `OPENCODE_CONFIG_CONTENT`, its other keys are preserved and our plugin
+   * path is appended (deduped); the ask-all rule is appended last so it wins
+   * under the engine's last-match-wins evaluation (`permission.ts:87-97`)
+   * without touching user files. The injected ruleset stays ask-ALL
+   * (including `read`): the `read` exception lives in our translator, keeping
+   * a single decision point. Returns undefined when no plugin dir applies
+   * (external mode / missing).
    */
   private resolvePluginConfig(pluginDir: string | undefined): string | undefined {
     if (!pluginDir) {
@@ -301,14 +334,14 @@ export class OctServerManager {
             plugins.push(normalized);
           }
           logLine("Bridge plugin appended to the existing OPENCODE_CONFIG_CONTENT.");
-          return JSON.stringify({ ...record, plugins });
+          return JSON.stringify(withAskAllPermissions({ ...record, plugins }));
         }
       } catch {
         logLine("Existing OPENCODE_CONFIG_CONTENT is not JSON; the bridge plugin config replaces it.");
       }
     }
     logLine("Bridge plugin installed on the managed server.");
-    return JSON.stringify({ plugins: [normalized] });
+    return JSON.stringify(withAskAllPermissions({ plugins: [normalized] }));
   }
 
   /** Kill the owned child process without touching the failure state. */

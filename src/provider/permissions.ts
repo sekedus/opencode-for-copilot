@@ -3,20 +3,26 @@ import { interruptSession, replySessionPermission, type PermissionRequestItem } 
 import { logLine } from "../output";
 
 /**
- * Permission translator (T-0006 approvals).
+ * Permission translator (T-0006 approvals; T-0020 Copilot-gated).
  *
  * Engine-native actions (edit/write/shell/…) pause the turn with
  * `permission.asked`; this module surfaces each request as a VS Code
  * confirmation and replies `once`/`reject` — the two permission systems are
  * translated, not merged:
  *
+ * - Opencode tools follow ONLY Copilot's global default
+ *   (`chat.permissions.default`, read fresh on every non-read request):
+ *   `read` (exact action match) is always auto-`once` silently under every
+ *   setting; `default`/missing/unknown/`assisted` ask with Allow/Cancel;
+ *   `autoApprove`/`autopilot` auto-`once` silently for that one request.
+ *   Copilot tools (bridge `ToolCallPart`) are host-owned and untouched.
  * - Default-deny: timeout, dismiss, VS Code cancellation, or a failed reply
  *   all resolve to `reject` (plus an interrupt fallback when the reply could
- *   not be delivered). Nothing auto-approves.
- * - Session trust ("Always for This Session") is a client-side auto-`once`
- *   for the rest of that session only. The bridge NEVER sends `always`
- *   (which would persist a server-side rule) and never propagates VS Code's
- *   Allow-all/Autopilot levels.
+ *   not be delivered). Nothing auto-approves except `read` and Copilot
+ *   Bypass/Autopilot levels.
+ * - No session trust: there is no always-for-session option, no `trusted`
+ *   set, nothing persisted. The bridge NEVER sends `always` (which would
+ *   persist a server-side rule).
  * - Every decision is logged (action + resources only, never secrets).
  */
 
@@ -105,20 +111,48 @@ export interface TranslatorDeps {
 
 export type ApprovalOutcome = "continued" | "rejected";
 
+/** Exact engine action that is always allowed (no side effects). */
+export function isReadAction(action: string): boolean {
+  return action === "read";
+}
+
+/**
+ * Read Copilot's global permission default fresh (no caching).
+ * Returns the raw string (`default|assisted|autoApprove|autopilot`) or
+ * undefined when unset/unknown (older VS Code predates the setting).
+ */
+export function readCopilotPermissionLevel(): string | undefined {
+  try {
+    const cfg = vscode.workspace.getConfiguration("chat");
+    const value = cfg?.get<unknown>("permissions.default");
+    return typeof value === "string" ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export type ApprovalMode = "allow-silent" | "ask";
+
+/**
+ * Map one engine request to its approval mode (T-0020 simplified rule).
+ * `read` is always silent; non-read follows ONLY the global default:
+ * `autoApprove`/`autopilot` allow silently, everything else asks.
+ */
+export function resolveApprovalMode(copilotLevel: unknown, action: string): ApprovalMode {
+  if (isReadAction(action)) {
+    return "allow-silent";
+  }
+  if (copilotLevel === "autoApprove" || copilotLevel === "autopilot") {
+    return "allow-silent";
+  }
+  return "ask";
+}
+
 export class PermissionTranslator {
-  private readonly trusted = new Set<string>();
   private pending = 0;
 
   pendingCount(): number {
     return this.pending;
-  }
-
-  isTrusted(sessionId: string): boolean {
-    return this.trusted.has(sessionId);
-  }
-
-  forget(sessionId: string): void {
-    this.trusted.delete(sessionId);
   }
 
   /**
@@ -134,20 +168,33 @@ export class PermissionTranslator {
   ): Promise<ApprovalOutcome> {
     const { baseUrl, password } = deps;
     const label = `${asked.action}${asked.resources.length > 0 ? ` ${asked.resources.join(", ")}` : ""}`;
-    if (this.trusted.has(asked.sessionID)) {
+    if (isReadAction(asked.action)) {
       const delivered = await this.reply(baseUrl, password, asked, "once");
-      logLine(`Permission ${asked.id} (${label}): auto-continued (session trusted).`);
+      logLine(`Permission ${asked.id} (${label}): auto-continued (read always allowed).`);
       return delivered ? "continued" : "rejected";
     }
+    const level = readCopilotPermissionLevel();
+    if (level === "autoApprove" || level === "autopilot") {
+      const delivered = await this.reply(baseUrl, password, asked, "once");
+      logLine(`Permission ${asked.id} (${label}): auto-continued (Copilot ${level}).`);
+      return delivered ? "continued" : "rejected";
+    }
+    if (level !== undefined && level !== "default") {
+      logLine(`Permission ${asked.id} (${label}): Copilot level '${level}' treated as ask.`);
+    }
+    logLine(`Permission ${asked.id} (${label}): asking (Copilot permissions: ${level ?? "default"}).`);
     this.pending++;
     try {
       const choice = await this.confirm(asked, deps.timeoutMs, token);
-      if (choice === "trust") {
-        this.trusted.add(asked.sessionID);
-        logLine(`Session ${asked.sessionID} trusted for approvals (client-side auto-once; never sent as always).`);
-      }
-      if (choice !== "once" && choice !== "trust") {
-        const why = choice === "timeout" ? "timeout default-deny" : choice === "cancelled" ? "VS Code cancellation" : "user cancel";
+      if (choice !== "once") {
+        const why =
+          choice === "timeout"
+            ? "timeout default-deny"
+            : choice === "cancelled"
+              ? "VS Code cancellation"
+              : choice === "dismissed"
+                ? "dismissed (default-deny)"
+                : "user cancel";
         logLine(`Permission ${asked.id} (${label}): denied (${why}).`);
         await this.reply(baseUrl, password, asked, "reject");
         return "rejected";
@@ -187,7 +234,7 @@ export class PermissionTranslator {
     asked: PermissionAsked,
     timeoutMs: number,
     token: vscode.CancellationToken,
-  ): Promise<"once" | "trust" | "dismissed" | "timeout" | "cancelled"> {
+  ): Promise<"once" | "dismissed" | "timeout" | "cancelled"> {
     if (token.isCancellationRequested) {
       return "cancelled";
     }
@@ -234,13 +281,10 @@ export class PermissionTranslator {
       message = `${message.slice(0, 3000)}\n…(truncated)`;
     }
     const choicePromise = Promise.resolve(
-      vscode.window.showWarningMessage(message, "Continue Once", "Always for This Session", "Cancel"),
-    ).then((choice): "once" | "trust" | "dismissed" => {
-        if (choice === "Continue Once") {
+      vscode.window.showWarningMessage(message, "Allow", "Cancel"),
+    ).then((choice): "once" | "dismissed" => {
+        if (choice === "Allow") {
           return "once";
-        }
-        if (choice === "Always for This Session") {
-          return "trust";
         }
         return "dismissed";
       });

@@ -1,6 +1,6 @@
 # Adaptive Agent Workflow
 
-**Workflow version: v6**
+**Workflow version: v7**
 
 ## Harness Portability
 
@@ -29,7 +29,7 @@ The workflow therefore optimizes for **recovery, bounded work, and evidence**, n
 
 ---
 
-## 2. Five Layers
+## 2. Six Layers
 
 ```text
 1. Global user preferences
@@ -44,7 +44,10 @@ The workflow therefore optimizes for **recovery, bounded work, and evidence**, n
 4. Skills
    Specialized workflows such as grilling, debugging, TDD, security, UI design, and browser testing.
 
-5. Project state
+5. Codebase memory
+   Where capabilities, flows, ownership, dependencies, contracts, and test surfaces live.
+
+6. Project state
    Where work actually is right now.
 ```
 
@@ -188,7 +191,53 @@ If a required dependency is unavailable, stop the specialized workflow rather th
 
 ---
 
-## 7. Build Policy
+## 8. Codebase Memory and Engineering Discipline
+
+`ARCHITECTURE-MAP.md` is the living codebase map. It is intentionally compact and navigational rather than a duplicate of every architecture detail.
+
+Use it to answer quickly:
+
+- where a capability lives;
+- who owns a module/domain;
+- what depends on it;
+- what depends on it;
+- which flows cross module boundaries;
+- which files are hotspots or sensitive contracts;
+- where the relevant tests live.
+
+### Trace before patching
+
+For bugs and non-trivial behavior changes:
+
+```text
+symptom
+  -> reproduction
+  -> actual execution/data flow
+  -> shared/root cause
+  -> smallest correct fix
+  -> regression test
+```
+
+### Reuse / YAGNI ladder
+
+```text
+existing project capability
+    -> standard/platform API
+    -> existing dependency
+    -> new abstraction/dependency only when justified
+```
+
+**Do not** add abstractions merely for hypothetical future reuse.
+
+### Living map rule
+
+Update `ARCHITECTURE-MAP.md` in the same state transaction when code changes materially alter ownership, dependencies, flows, entry points, contracts, hotspots, or test surfaces.
+
+### Verification contract
+
+`dev/verification.md` defines the concrete project checks and evidence needed to move from `IMPLEMENTED` to `TESTED` or `VERIFIED`.
+
+## 8. Build Policy
 
 During implementation:
 
@@ -203,7 +252,7 @@ A task may contain multiple implementation units. A chat session does not need t
 
 ---
 
-## 8. Three-Pillar Quality Model
+## 9. Three-Pillar Quality Model
 
 Meaningful product work is evaluated through three primary pillars:
 
@@ -266,7 +315,7 @@ frontend-design-review
 
 Select the smallest useful combination. Do not automatically run all design skills on every UI change.
 
-## 9. Security Skill Routing
+## 10. Security Skill Routing
 
 The user should not have to memorize security skill names. Classify the project's attack surface first:
 
@@ -286,7 +335,7 @@ The security library is intentionally large. Select the smallest set of skills t
 
 ---
 
-## 10. Recovery-First Execution
+## 11. Recovery-First Execution
 
 A session can fail at any time:
 
@@ -328,7 +377,7 @@ Only after reconciliation should implementation continue.
 
 ---
 
-## 11. Context Safety
+## 12. Context Safety
 
 The goal is not to consume the maximum advertised context window.
 
@@ -354,7 +403,7 @@ not the entire previous conversation.
 
 ---
 
-## 12. Project Switching
+## 13. Project Switching
 
 A project switch is not a loss of state.
 
@@ -374,7 +423,7 @@ This allows the user to explore project B without losing the exact resume point 
 
 ---
 
-## 12. Verification Vocabulary
+## 13. Verification Vocabulary
 
 Use explicit evidence labels:
 
@@ -396,7 +445,7 @@ Avoid claims such as "secure" or "fully compatible" unless the evidence supports
 
 ---
 
-## 13. Feature and Bug-Fix Records
+## 14. Feature and Bug-Fix Records
 
 Active work belongs in `dev/tasks/`. Completed work may produce a historical record when it is useful to preserve project understanding.
 
@@ -414,7 +463,7 @@ Feature/bug records are part of the state transaction that closes the work, but 
 
 ---
 
-## 14. Final Checkpoint
+## 15. Final Checkpoint
 
 Before ending a meaningful session, `dev/now.md` should answer:
 
@@ -442,3 +491,7 @@ Task completion is also a state transaction: verify the task, synchronize affect
 Commit policy is stored in `dev/commit-policy.md`. `initial` and `task` are independent settings. Auto-commit requires verification, state-integrity checks, and a commit scope containing only attributable checkpoint changes.
 
 The template repository's own root README is agent-facing documentation and is not copied verbatim into target projects. For an empty/new project, the agent generates a user-facing README from the actual project state. Existing project READMEs are preserved and updated only when project understanding materially changes.
+
+## v7 Engineering Discipline Summary
+
+The v7 layer adds codebase memory and engineering discipline to the recovery-first workflow. Project state remains centered on `now.md`, tasks, roadmap, and Git, while `ARCHITECTURE-MAP.md` explains the shape of the codebase and `dev/verification.md` defines concrete evidence for completion.

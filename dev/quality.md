@@ -80,7 +80,34 @@ Use `dev/security.md` to map the project's actual attack surface to targeted sec
 
 **Do not** treat a generic security checklist or a single AI review as a security guarantee.
 
-## 2. Classification Dimensions
+## 2. Verification Contract
+
+Use `dev/verification.md` as the project's concrete verification contract. Quality-gate selection answers **what** needs confidence; `dev/verification.md` answers **which commands/evidence** prove it.
+
+ mark a task `VERIFIED` merely because an agent reports that a change works. Require evidence appropriate to the risk and project contract.
+
+## 5. Codebase Engineering Discipline
+
+Before non-trivial implementation:
+
+```text
+understand flow
+  -> check existing capabilities
+  -> choose smallest fitting change
+  -> implement
+  -> verify
+```
+
+Reuse ladder:
+
+1. existing project capability;
+2. standard library/platform API;
+3. already-installed dependency;
+4. new abstraction/dependency only when justified.
+
+For bugs, establish reproduction and trace the real execution/data flow before patching symptoms.
+
+## 6. Classification Dimensions
 
 Before selecting gates, consider:
 
@@ -93,7 +120,7 @@ Before selecting gates, consider:
 - browser/runtime compatibility;
 - likelihood of requiring real-world verification.
 
-## 3. Small / Local Change
+## 5. Small / Local Change
 
 Example:
 
@@ -109,7 +136,7 @@ targeted verification
 
 **Do not** run a full security assessment, design audit, or architecture review.
 
-## 4. Normal Feature
+## 6. Normal Feature
 
 Example:
 
@@ -127,7 +154,7 @@ behavioral tests
 
 Only activate the pillars affected by the change.
 
-## 5. Large / Cross-Cutting Feature
+## 7. Large / Cross-Cutting Feature
 
 Use:
 
@@ -138,7 +165,7 @@ Use:
 - targeted quality gates for all affected pillars;
 - `/code-review` before considering implementation complete.
 
-## 6. Bug / Unknown Failure
+## 8. Bug / Unknown Failure
 
 Use:
 
@@ -150,7 +177,7 @@ Use:
 
 **Do not** redesign the system before establishing the actual failure.
 
-## 7. Security Gate
+## 9. Security Gate
 
 Use `dev/security.md` to classify the attack surface first.
 
@@ -193,7 +220,7 @@ LLM/RAG/MCP
 
 **Do not** install or invoke the entire cybersecurity catalog for every project. Select only the domains and skills justified by the project's attack surface.
 
-## 8. UI / Frontend Change
+## 10. UI / Frontend Change
 
 For a new or substantially redesigned UI:
 
@@ -225,13 +252,13 @@ interactive/responsive UI
 
 Use `impeccable` when the task is about shaping, critiquing, auditing, polishing, clarifying, distilling, or refining a frontend interface. It provides a larger design vocabulary and deterministic detectors for common AI-generated design patterns.
 
-## 9. Behavior / Regression Work
+## 11. Behavior / Regression Work
 
 Use `/tdd` when test-first development materially improves confidence.
 
 Prefer tests around public behavior rather than implementation details.
 
-## 10. Stress / Failure Testing
+## 12. Stress / Failure Testing
 
 "Stress testing" is not one universal operation.
 
@@ -249,13 +276,13 @@ Select relevant categories:
 
 Select the smallest meaningful set based on the feature's risk.
 
-## 11. Codebase-Wide Architecture Review
+## 13. Codebase-Wide Architecture Review
 
 **Do not** perform architecture refactoring after every task.
 
 Use `/improve-codebase-architecture` periodically or when repeated changes reveal structural friction.
 
-## 12. Review Sequence
+## 14. Review Sequence
 
 Normal feature:
 
@@ -280,7 +307,7 @@ understand / grill
   -> checkpoint
 ```
 
-## 13. Evidence Levels
+## 15. Evidence Levels
 
 Use these labels in task notes when useful:
 
@@ -291,7 +318,7 @@ Use these labels in task notes when useful:
 
 Never convert "no obvious issue found" into "secure", "bug-free", or "production-ready" without evidence appropriate to that claim.
 
-## 14. Completion Checkpoint
+## 16. Completion Checkpoint
 
 A task is not considered operationally complete until the agent has:
 

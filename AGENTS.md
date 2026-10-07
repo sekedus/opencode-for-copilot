@@ -19,8 +19,10 @@ When resuming work:
 2. Resolve the current task, if one exists.
 3. Verify the current task against `dev/roadmap.md`.
 4. Inspect `git status` and relevant diffs when code state may matter.
-5. Read only project documents relevant to the task.
-6. Inspect the relevant source/tests.
+5. Read `ARCHITECTURE-MAP.md` for medium/large, cross-module, architectural, unfamiliar, or root-cause work.
+6. Read `dev/verification.md` when verification expectations are unclear or task completion is being assessed.
+7. Read only other project documents relevant to the task.
+8. Inspect the relevant source/tests.
 
 Do not reconstruct project state from old chat history when repository state is available.
 
@@ -43,19 +45,75 @@ For an empty/new project:
 
 1. Install the workflow files.
 2. Create a user-facing root `README.md` describing the actual project state. Do not copy the template repository's agent-oriented root README verbatim.
-3. Initialize `dev/project.md`, `dev/constraints.md`, `dev/quality.md`, `dev/security.md`, `dev/roadmap.md`, and `dev/now.md` to reflect the real project.
-4. Set the workflow state to `DISCOVERY_PENDING` until a real project objective exists.
+3. Initialize `dev/project.md`, `dev/constraints.md`, `dev/quality.md`, `dev/security.md`, `dev/roadmap.md`, `dev/now.md`, and `dev/verification.md` to reflect the real project.
+4. Initialize `ARCHITECTURE-MAP.md` as the project's living codebase map.
+5. Set the workflow state to `DISCOVERY_PENDING` until a real project objective exists.
 5. Offer the user an `Initial commit` checkpoint after installation and README creation.
 
 For an existing project:
 
 - preserve the existing root `README.md`;
 - merge workflow files with existing project-specific instructions;
-- reconcile project state before claiming installation is complete.
+- reconcile project state before claiming installation is complete, including `ARCHITECTURE-MAP.md` and `dev/verification.md` when applicable.
 
 Never copy the template source repository's root `README.md` into an existing project merely because it exists in the template. That README is documentation for agents and for the template itself.
 
 ---
+
+## 3. Codebase Understanding and Engineering Discipline
+
+`ARCHITECTURE-MAP.md` is the living navigation map for the codebase. It is not a substitute for reading source code; it tells the agent where to look and what relationships matter.
+
+### When to consult the map
+
+Use the map before:
+
+- medium or large tasks;
+- cross-module changes;
+- architectural changes;
+- unfamiliar code paths;
+- debugging where the symptom may have a shared root cause;
+- changes to public contracts or important execution flows.
+
+For small, local changes, read only the relevant map section or source when necessary.
+
+### Trace before patching
+
+Do not assume the file that appears to contain the symptom is the root cause.
+
+For bugs and non-trivial behavior changes, trace the real flow far enough to understand:
+
+```text
+input / trigger
+    -> transformation
+    -> shared logic
+    -> output / side effect
+    -> callers / consumers
+    -> relevant tests
+```
+
+Prefer fixing the smallest shared/root cause over patching multiple symptoms independently.
+
+### Reuse / YAGNI ladder
+
+Before creating a new helper, abstraction, dependency, or subsystem:
+
+1. Check whether the project already has a capability that can be reused.
+2. Check whether a standard-library or platform API solves the problem.
+3. Check whether an already-installed dependency provides the capability.
+4. Only then introduce a new abstraction or dependency when there is a concrete need.
+
+Do not add abstraction merely because future reuse is imaginable.
+
+### Architecture map maintenance
+
+When implementation materially changes domains, ownership, dependencies, flows, entry points, contracts, hotspots, or test surfaces, update `ARCHITECTURE-MAP.md` in the same state transaction.
+
+Do not rewrite it for trivial changes that do not alter the codebase shape.
+
+### Verification contract
+
+Use `dev/verification.md` as the concrete project-specific verification contract. Do not invent a project-wide "done" standard from memory.
 
 ## 3. Natural-Language Intent
 
@@ -193,8 +251,10 @@ Update as applicable:
 - `dev/constraints.md`
 - `dev/quality.md`
 - `dev/security.md`
+- `dev/verification.md`
 - `dev/roadmap.md`
 - `dev/now.md`
+- `ARCHITECTURE-MAP.md`
 - ADRs when durable decisions were made
 
 ### Task Created
@@ -212,6 +272,8 @@ Update:
 - current task
 - `dev/now.md`
 - `dev/roadmap.md` when task status or milestone state changes
+- `ARCHITECTURE-MAP.md` when the codebase shape materially changes
+- `dev/verification.md` when the project's verification contract changes
 - root `README.md` when project-understanding information changed materially
 
 ### Architectural Decision
@@ -224,7 +286,7 @@ Update:
 
 ### Verification Completed
 
-Update the task and `dev/now.md` with evidence. Do not claim completion without appropriate evidence.
+Use the project-specific contract in `dev/verification.md`. Update the task and `dev/now.md` with concrete evidence. Do not claim completion without appropriate evidence.
 
 ### Commit Created
 

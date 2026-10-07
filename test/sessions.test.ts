@@ -14,6 +14,7 @@ import {
   trackOrphaned,
   chooseEvictionKey,
   groupSnapshotsByDirectory,
+  modelKeyFor,
   sessionCreatedMs,
   formatSessionAge,
   DEFAULT_MAX_SESSIONS,
@@ -805,5 +806,181 @@ describe("provider retired-chat notice (T-0019)", () => {
       provider.mappedSessions().every((e: { key: string }) => e.key !== "conv:charlie"),
       "map unchanged (no ses_fork-style fork)",
     );
+  });
+});
+
+describe("modelKeyFor (T-0021 variant pinning)", () => {
+  it("is the bare picker id without a variant", () => {
+    assert.equal(modelKeyFor("p/m", undefined), "p/m");
+  });
+
+  it("folds a set variant after #", () => {
+    assert.equal(modelKeyFor("p/m", "high"), "p/m#high");
+    assert.notEqual(modelKeyFor("p/m", "low"), modelKeyFor("p/m", "high"));
+  });
+});
+
+describe("session variant plumbing (T-0021)", () => {
+  const deps = { baseUrl: "http://127.0.0.1:9", password: "", directory: "D:\\work" };
+
+  /** Stub `fetch`, capturing session-create and model-switch wire bodies. */
+  async function withCapturingFetch(
+    run: (captured: { creates: Array<Record<string, unknown>>; switches: Array<{ url: string; body: unknown }> }) => Promise<void>,
+  ): Promise<void> {
+    const realFetch = globalThis.fetch;
+    const captured = { creates: [] as Array<Record<string, unknown>>, switches: [] as Array<{ url: string; body: unknown }> };
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async (url: unknown, init?: { method?: string; body?: string }) => {
+      const u = String(url);
+      if (init?.method === "POST" && /\/api\/session\/[^/]+\/model$/.test(u)) {
+        captured.switches.push({ url: u, body: init.body === undefined ? undefined : JSON.parse(init.body) });
+        return new Response(JSON.stringify({}), { status: 200 });
+      }
+      if (init?.method === "POST" && u.endsWith("/api/session")) {
+        captured.creates.push(JSON.parse(init.body ?? "{}") as Record<string, unknown>);
+        return new Response(JSON.stringify({ data: { id: `ses_variant_${captured.creates.length}` } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    };
+    try {
+      await run(captured);
+    } finally {
+      (globalThis as unknown as Record<string, unknown>)["fetch"] = realFetch;
+    }
+  }
+
+  it("create sends the validated variant and pins the modelKey", async () => {
+    const map = new OctSessionMap(fakeStore({}), 5);
+    await withCapturingFetch(async (captured) => {
+      const id = await map.getOrCreate("conv:v", deps, { id: "m", providerID: "p", pickerId: "p/m", variant: "high" });
+      assert.equal(id, "ses_variant_1");
+      assert.deepEqual((captured.creates[0] as { model?: unknown }).model, { id: "m", providerID: "p", variant: "high" });
+    });
+    assert.deepEqual(map.snapshot(), [{ key: "conv:v", sessionId: "ses_variant_1", modelKey: "p/m#high", directory: "D:\\work" }]);
+  });
+
+  it("omits the variant key when no effort was picked", async () => {
+    const map = new OctSessionMap(fakeStore({}), 5);
+    await withCapturingFetch(async (captured) => {
+      await map.getOrCreate("conv:plain", deps, { id: "m", providerID: "p", pickerId: "p/m" });
+      assert.deepEqual((captured.creates[0] as { model?: unknown }).model, { id: "m", providerID: "p" });
+    });
+    assert.deepEqual(map.snapshot(), [{ key: "conv:plain", sessionId: "ses_variant_1", modelKey: "p/m", directory: "D:\\work" }]);
+  });
+
+  it("effort change mid-chat switches the same session (no fork)", async () => {
+    const map = new OctSessionMap(fakeStore({}), 5);
+    await withCapturingFetch(async (captured) => {
+      const first = await map.getOrCreate("conv:v", deps, { id: "m", providerID: "p", pickerId: "p/m", variant: "high" });
+      const second = await map.getOrCreate("conv:v", deps, { id: "m", providerID: "p", pickerId: "p/m", variant: "low" });
+      assert.equal(second, first, "same session reused across the effort change");
+      assert.equal(captured.creates.length, 1, "no second session created");
+      assert.equal(captured.switches.length, 1);
+      assert.deepEqual((captured.switches[0].body as { model?: unknown }).model, { id: "m", providerID: "p", variant: "low" });
+    });
+    assert.deepEqual(map.snapshot(), [{ key: "conv:v", sessionId: "ses_variant_1", modelKey: "p/m#low", directory: "D:\\work" }]);
+  });
+
+  it("same effort reuses silently (no switch)", async () => {
+    const map = new OctSessionMap(fakeStore({}), 5);
+    await withCapturingFetch(async (captured) => {
+      const first = await map.getOrCreate("conv:v", deps, { id: "m", providerID: "p", pickerId: "p/m", variant: "high" });
+      const second = await map.getOrCreate("conv:v", deps, { id: "m", providerID: "p", pickerId: "p/m", variant: "high" });
+      assert.equal(second, first);
+      assert.equal(captured.switches.length, 0);
+    });
+  });
+});
+
+describe("provider thinking-effort round-trip (T-0021)", () => {
+  it("picked effort travels as Model.Ref.variant; unknown/absent sends none", async () => {
+    const store = fakeStore({});
+    const provider = new OctChatProvider({
+      baseUrl: "http://127.0.0.1:9",
+      password: "",
+      directory: "D:\\work",
+      sessionStore: store,
+      shuttle: new ToolShuttle(),
+      translator: new PermissionTranslator(),
+      permissionTimeoutMs: 1000,
+      managed: true,
+      maxSessions: 10,
+    });
+    const model = { id: "p/m", providerID: "p", modelID: "m", variantIds: ["low", "high"] } as unknown as OctModel;
+    const messages = [userMessage("do the thing")] as unknown as readonly vscode.LanguageModelChatRequestMessage[];
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: () => ({ dispose() {} }),
+    } as unknown as vscode.CancellationToken;
+    const progress = { report() {} } as unknown as vscode.Progress<vscode.LanguageModelResponsePart>;
+    const createdIds: string[] = [];
+    const createBodies: unknown[] = [];
+    const switchBodies: unknown[] = [];
+    let mapped: Array<{ key: string; sessionId: string; modelKey: string }> = [];
+    const realFetch = globalThis.fetch;
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async (url: unknown, init?: { method?: string; body?: string }) => {
+      const u = String(url);
+      const method = init?.method ?? "GET";
+      if (u.includes("/api/event")) {
+        const frames = ["ses_rt_1", "ses_rt_2", "ses_rt_3"]
+          .map((id) => `data: {"type":"session.idle","data":{"sessionID":"${id}"}}\n\n`)
+          .join("");
+        const bytes = new TextEncoder().encode(frames);
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes);
+              controller.close();
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      }
+      if (u.includes("/message?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      if (method === "POST" && /\/api\/session\/[^/]+\/model$/.test(u)) {
+        switchBodies.push(JSON.parse(init?.body ?? "{}"));
+        return new Response(JSON.stringify({}), { status: 200 });
+      }
+      if (method === "POST" && u.endsWith("/api/session")) {
+        createBodies.push(JSON.parse(init?.body ?? "{}"));
+        const id = `ses_rt_${createdIds.length + 1}`;
+        createdIds.push(id);
+        return new Response(JSON.stringify({ data: { id } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    };
+    try {
+      const turn = (conversationId: string, modelConfiguration?: Record<string, unknown>) =>
+        provider.provideLanguageModelChatResponse(
+          model,
+          messages,
+          {
+            modelOptions: { _conversationId: conversationId },
+            tools: [],
+            ...(modelConfiguration === undefined ? {} : { modelConfiguration }),
+          } as unknown as vscode.ProvideLanguageModelChatResponseOptions,
+          progress,
+          token,
+        );
+      await turn("effort-pick", { reasoningEffort: "high" });
+      await turn("effort-pick", { reasoningEffort: "low" });
+      await turn("effort-unknown", { reasoningEffort: "ultra" });
+      await turn("effort-absent");
+      mapped = provider.mappedSessions();
+    } finally {
+      globalThis.fetch = realFetch;
+      provider.dispose();
+    }
+    assert.equal(createBodies.length, 3, "pick + unknown + absent create; the effort change switches");
+    assert.deepEqual((createBodies[0] as { model?: unknown }).model, { id: "m", providerID: "p", variant: "high" });
+    assert.deepEqual((createBodies[1] as { model?: unknown }).model, { id: "m", providerID: "p" }, "unknown effort omitted");
+    assert.deepEqual((createBodies[2] as { model?: unknown }).model, { id: "m", providerID: "p" }, "absent effort omitted");
+    assert.equal(switchBodies.length, 1, "mid-chat effort change pins via switch");
+    assert.deepEqual((switchBodies[0] as { model?: unknown }).model, { id: "m", providerID: "p", variant: "low" });
+    const byKey = new Map(mapped.map((e) => [e.key, e]));
+    assert.equal(byKey.get("conv:effort-pick")?.sessionId, "ses_rt_1", "no fork on effort change");
+    assert.equal(byKey.get("conv:effort-pick")?.modelKey, "p/m#low");
+    assert.equal(byKey.get("conv:effort-unknown")?.modelKey, "p/m");
   });
 });

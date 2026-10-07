@@ -113,6 +113,24 @@ export interface SessionDeps {
   directory: string;
 }
 
+/** Engine model coordinates for a turn (T-0021 adds the Thinking Effort pick). */
+export interface SessionModelRef {
+  id: string;
+  providerID: string;
+  pickerId: string;
+  /** Validated Thinking Effort variant; undefined = engine default. */
+  variant?: string;
+}
+
+/**
+ * Map key pinning a session to its model + effort (T-0021, pure): the picker
+ * id plus `#variant` when an effort is set. An effort change mid-chat hence
+ * pins via `switch` (1:1 reuse, no fork); the picker id itself stays stable.
+ */
+export function modelKeyFor(pickerId: string, variant: string | undefined): string {
+  return variant ? `${pickerId}#${variant}` : pickerId;
+}
+
 interface Entry {
   sessionId: string;
   modelKey: string;
@@ -806,7 +824,7 @@ export class OctSessionMap {
   getOrCreate(
     key: string,
     deps: SessionDeps,
-    model: { id: string; providerID: string; pickerId: string },
+    model: SessionModelRef,
     token?: vscode.CancellationToken,
     titleSeed?: string,
   ): Promise<string> {
@@ -814,7 +832,7 @@ export class OctSessionMap {
     if (existing && !this.unverified.has(key)) {
       // Fast path: verified this window, no I/O.
       this.touch(key, existing);
-      if (existing.modelKey !== model.pickerId) {
+      if (existing.modelKey !== modelKeyFor(model.pickerId, model.variant)) {
         return this.ensureModel(existing, deps, model);
       }
       return Promise.resolve(existing.sessionId);
@@ -835,7 +853,7 @@ export class OctSessionMap {
   private async resolveSlow(
     key: string,
     deps: SessionDeps,
-    model: { id: string; providerID: string; pickerId: string },
+    model: SessionModelRef,
     token?: vscode.CancellationToken,
     titleSeed?: string,
   ): Promise<string> {
@@ -848,7 +866,7 @@ export class OctSessionMap {
           return this.create(key, deps, model, token, titleSeed);
         }
       }
-      if (existing.modelKey !== model.pickerId) {
+      if (existing.modelKey !== modelKeyFor(model.pickerId, model.variant)) {
         return this.ensureModel(existing, deps, model);
       }
       return existing.sessionId;
@@ -888,16 +906,17 @@ export class OctSessionMap {
   private async ensureModel(
     entry: Entry,
     deps: SessionDeps,
-    model: { id: string; providerID: string; pickerId: string },
+    model: SessionModelRef,
   ): Promise<string> {
     try {
       await switchSessionModel(deps.baseUrl, deps.password, entry.sessionId, {
         id: model.id,
         providerID: model.providerID,
+        ...(model.variant === undefined ? {} : { variant: model.variant }),
       });
-      entry.modelKey = model.pickerId;
+      entry.modelKey = modelKeyFor(model.pickerId, model.variant);
       this.persist();
-      logLine(`Session ${entry.sessionId} switched to ${model.pickerId}.`);
+      logLine(`Session ${entry.sessionId} switched to ${entry.modelKey}.`);
     } catch (error) {
       // Non-fatal: the turn still runs on the session's current model.
       logLine(`Model switch failed for ${entry.sessionId}: ${error instanceof Error ? error.message : String(error)}`);
@@ -908,7 +927,7 @@ export class OctSessionMap {
   private async create(
     key: string,
     deps: SessionDeps,
-    model: { id: string; providerID: string; pickerId: string },
+    model: SessionModelRef,
     token?: vscode.CancellationToken,
     titleSeed?: string,
   ): Promise<string> {
@@ -919,10 +938,15 @@ export class OctSessionMap {
     const info: SessionInfo = await createSession(deps.baseUrl, deps.password, {
       title: seed,
       directory: deps.directory || undefined,
-      model: { id: model.id, providerID: model.providerID },
+      model: {
+        id: model.id,
+        providerID: model.providerID,
+        ...(model.variant === undefined ? {} : { variant: model.variant }),
+      },
     });
     const dir = deps.directory && deps.directory.trim() ? deps.directory : undefined;
-    const entry: Entry = dir === undefined ? { sessionId: info.id, modelKey: model.pickerId } : { sessionId: info.id, modelKey: model.pickerId, directory: dir };
+    const modelKey = modelKeyFor(model.pickerId, model.variant);
+    const entry: Entry = dir === undefined ? { sessionId: info.id, modelKey } : { sessionId: info.id, modelKey, directory: dir };
     this.entries.set(key, entry);
     while (this.entries.size > this.maxEntries) {
       const victim = chooseEvictionKey(this.entries.keys(), this.dead);

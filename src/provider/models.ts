@@ -12,6 +12,38 @@ export interface OctModel extends vscode.LanguageModelChatInformation {
   modelID: string;
   /** Picker visibility hint (proposed chatProvider API; treated as true when omitted). */
   isUserSelectable?: boolean;
+  /**
+   * Per-model configure control (proposed chatProvider API — stable
+   * `@types/vscode` lacks it, declared here like `isUserSelectable` so the
+   * runtime host can read it off the returned object).
+   */
+  configurationSchema?: OctConfigurationSchema;
+  /**
+   * Advertised engine variant ids (`Model.Info.variants[]`, normalized).
+   * Never shown in the picker; used to validate the user's Thinking Effort
+   * pick before sending it as `Model.Ref.variant`.
+   */
+  variantIds?: string[];
+}
+
+/**
+ * Minimal local shape for the proposed `LanguageModelConfigurationSchema`
+ * (see `vscode.proposed.chatProvider.d.ts`): JSON Schema properties plus
+ * the picker's display hints (`enumItemLabels`, `group: 'navigation'`).
+ */
+export interface OctConfigurationSchemaProperty {
+  type: string;
+  title?: string;
+  enum?: string[];
+  enumItemLabels?: string[];
+  enumDescriptions?: string[];
+  default?: string;
+  group?: string;
+  [key: string]: unknown;
+}
+
+export interface OctConfigurationSchema {
+  properties?: Record<string, OctConfigurationSchemaProperty>;
 }
 
 /** Fallback limits when the engine omits them. */
@@ -30,6 +62,130 @@ export function parseOctPickerId(pickerId: string): { providerID: string; modelI
     return undefined;
   }
   return { providerID: pickerId.slice(0, slash), modelID: pickerId.slice(slash + 1) };
+}
+
+/**
+ * Normalize engine `Model.Info.variants[]` to a clean id list (T-0021).
+ * Tolerant: missing/malformed entries yield no control, never a picker crash.
+ * Trims, drops empties, dedupes preserving engine order.
+ */
+export function normalizeVariantIds(variants: unknown): string[] {
+  if (!Array.isArray(variants)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const item of variants) {
+    if (typeof item !== "object" || item === null) {
+      continue;
+    }
+    const id = (item as Record<string, unknown>)["id"];
+    if (typeof id !== "string") {
+      continue;
+    }
+    const trimmed = id.trim();
+    if (trimmed && !out.includes(trimmed)) {
+      out.push(trimmed);
+    }
+  }
+  return out;
+}
+
+/**
+ * Pick the schema default effort (T-0021, mirrors Copilot's
+ * `pickDefaultReasoningEffort`): claude/kimi-k3 families prefer `high`,
+ * others prefer `medium`, else the first advertised level. Empty → undefined
+ * (caller attaches no control).
+ */
+export function pickDefaultReasoningEffort(effortLevels: readonly string[], family: string): string | undefined {
+  if (effortLevels.length === 0) {
+    return undefined;
+  }
+  const lowerFamily = family.toLowerCase();
+  const preferred = lowerFamily.startsWith("claude") || lowerFamily.includes("kimi-k3") ? "high" : "medium";
+  if (effortLevels.includes(preferred)) {
+    return preferred;
+  }
+  return effortLevels[0];
+}
+
+/** Picker label for an effort level (mirrors Copilot's helper; unknown → capitalized). */
+export function getReasoningEffortLabel(level: string): string {
+  switch (level) {
+    case "none":
+      return "None";
+    case "minimal":
+      return "Minimal";
+    case "low":
+      return "Low";
+    case "medium":
+      return "Medium";
+    case "high":
+      return "High";
+    case "xhigh":
+      return "Xigh";
+    case "max":
+      return "Max";
+    default:
+      return level.charAt(0).toUpperCase() + level.slice(1);
+  }
+}
+
+/** Picker description for an effort level (mirrors Copilot's helper; unknown → raw level). */
+export function getReasoningEffortDescription(level: string): string {
+  switch (level) {
+    case "none":
+      return "No reasoning applied";
+    case "minimal":
+      return "Minimal reasoning for fastest responses";
+    case "low":
+      return "Faster responses with less reasoning";
+    case "medium":
+      return "Balanced reasoning and speed";
+    case "high":
+      return "Greater reasoning depth but slower";
+    case "xhigh":
+      return "Highest reasoning depth but slowest";
+    case "max":
+      return "Absolute maximum capability with no constraints";
+    default:
+      return level;
+  }
+}
+
+/**
+ * Build the `reasoningEffort` schema property for a model's
+ * `configurationSchema` (T-0021, mirrors Copilot's
+ * `buildReasoningEffortSchemaProperty`): `group: 'navigation'` renders it as
+ * the primary `...` picker action ("Thinking Effort").
+ */
+export function buildReasoningEffortSchemaProperty(
+  effortLevels: readonly string[],
+  family: string,
+): OctConfigurationSchemaProperty {
+  return {
+    type: "string",
+    title: "Thinking Effort",
+    enum: [...effortLevels],
+    enumItemLabels: effortLevels.map(getReasoningEffortLabel),
+    enumDescriptions: effortLevels.map(getReasoningEffortDescription),
+    default: pickDefaultReasoningEffort(effortLevels, family),
+    group: "navigation",
+  };
+}
+
+/**
+ * Validate the user's Thinking Effort pick against the model's advertised
+ * variants (T-0021). Returns the variant to send, or undefined to omit
+ * (engine default) when absent/unknown — never throws, never invents ids.
+ */
+export function resolveReasoningEffort(picked: unknown, advertised: readonly string[] | undefined): string | undefined {
+  if (typeof picked !== "string" || !picked) {
+    return undefined;
+  }
+  if (!Array.isArray(advertised) || !advertised.includes(picked)) {
+    return undefined;
+  }
+  return picked;
 }
 
 function toOctModel(info: ModelInfo): OctModel | undefined {
@@ -54,6 +210,14 @@ function toOctModel(info: ModelInfo): OctModel | undefined {
   // transport stays provider-side (attachments still placeholders).
   const inputs = info.capabilities?.input;
   const imageInput = Array.isArray(inputs) && inputs.includes("image");
+  // Thinking Effort (T-0021): exactly one picker entry per model. When the
+  // engine reports variants, attach the configure-model control offering only
+  // the reported ids; models without variants get no control.
+  const variantIds = normalizeVariantIds(info.variants);
+  const configurationSchema =
+    variantIds.length > 0
+      ? { properties: { reasoningEffort: buildReasoningEffortSchemaProperty(variantIds, family) } }
+      : undefined;
   return {
     id: octPickerId(info.providerID, info.id),
     name: `OCT / ${name}`,
@@ -70,6 +234,8 @@ function toOctModel(info: ModelInfo): OctModel | undefined {
     isUserSelectable: true,
     providerID: info.providerID,
     modelID: info.id,
+    ...(configurationSchema === undefined ? {} : { configurationSchema }),
+    ...(variantIds.length === 0 ? {} : { variantIds }),
   };
 }
 

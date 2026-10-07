@@ -296,5 +296,5 @@ feat: approval attention surface and Copilot-style levels
 Commit status:
 
 ```text
-UNCOMMITTED
+COMMITTED b65f55b
 ```

@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
-import { toOctModels, type OctModel } from "./models";
+import { toOctModels, resolveReasoningEffort, type OctModel } from "./models";
 import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
-import { conversationKey, DELETED_SESSION_MESSAGE, DROPPED_SESSION_MESSAGE, isSessionGoneError, OctSessionMap, sessionTitleFromMessages } from "./sessions";
+import { conversationKey, DELETED_SESSION_MESSAGE, DROPPED_SESSION_MESSAGE, isSessionGoneError, OctSessionMap, sessionTitleFromMessages, type SessionModelRef } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
 import { mapCopilotTools, type ToolShuttle } from "./tools";
 import { type PermissionTranslator } from "./permissions";
@@ -125,7 +125,19 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       this.deps.directory,
     );
     const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory };
-    const modelRef = { id: model.modelID, providerID: model.providerID, pickerId: model.id };
+    // Thinking Effort (T-0021, proposed API — stable types lack
+    // `modelConfiguration`, so read it via a minimal cast): the picker's
+    // resolved `reasoningEffort` for this model, validated against the
+    // engine-advertised variants. Absent/unknown → omitted (engine default).
+    const pickedEffort = (options as { modelConfiguration?: { reasoningEffort?: unknown } }).modelConfiguration
+      ?.reasoningEffort;
+    const variant = resolveReasoningEffort(pickedEffort, model.variantIds);
+    const modelRef: SessionModelRef = {
+      id: model.modelID,
+      providerID: model.providerID,
+      pickerId: model.id,
+      ...(variant === undefined ? {} : { variant }),
+    };
     if (this.sessions.isDead(key)) {
       // T-0013 follow-up: this chat's engine session was already reported
       // deleted — repeat the notice instead of silently opening an amnesiac
@@ -199,7 +211,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
         // as text context (placeholders for non-text); no text-only notice.
         logLine(`Turn on ${sid} carries tool parts without definitions; engine tools are the fallback.`);
       }
-      logLine(`Turn on ${sid} (${model.id}, ${promptText.length} chars).`);
+      logLine(`Turn on ${sid} (${modelRef.pickerId}${modelRef.variant ? `#${modelRef.variant}` : ""}, ${promptText.length} chars).`);
       const outcome = await streamTurn({ ...streamDepsFor(sid), promptText }, progress, token, hooks);
       await finishTurn(sid, outcome);
     };
@@ -275,7 +287,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       logLine(`Turn on ${sessionId} hit instruction-blocked; dropping the mapping and retrying once on a fresh session.`);
       this.sessions.forget(key);
       const freshId = await this.sessions.getOrCreate(key, sessionDeps, modelRef, token, titleSeed);
-      logLine(`Turn on ${freshId} (${model.id}, retry after instruction-blocked).`);
+      logLine(`Turn on ${freshId} (${modelRef.pickerId}${modelRef.variant ? `#${modelRef.variant}` : ""}, retry after instruction-blocked).`);
       try {
         await turn(freshId);
       } catch (retryError) {

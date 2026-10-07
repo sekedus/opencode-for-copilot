@@ -89,6 +89,11 @@ export async function getInfo(baseUrl: string, password: string, timeoutMs = 500
   return raw;
 }
 
+export interface ModelVariant {
+  id: string;
+  [key: string]: unknown;
+}
+
 export interface ModelInfo {
   id: string;
   modelID: string;
@@ -99,6 +104,8 @@ export interface ModelInfo {
   capabilities?: { tools: boolean; input: string[]; output: string[] };
   status?: string;
   enabled?: boolean;
+  /** Engine thinking-effort variants (`Model.Info.variants[]`); absent/empty = no effort control. */
+  variants?: ModelVariant[];
 }
 
 export interface ModelList {
@@ -131,7 +138,7 @@ export interface SessionInfo {
 export async function createSession(
   baseUrl: string,
   password: string,
-  input: { title?: string; directory?: string; model?: { id: string; providerID: string } },
+  input: { title?: string; directory?: string; model?: { id: string; providerID: string; variant?: string } },
   timeoutMs = 15000,
 ): Promise<SessionInfo> {
   const body: Record<string, unknown> = {};
@@ -139,7 +146,10 @@ export async function createSession(
     body["title"] = input.title;
   }
   if (input.model) {
-    body["model"] = { id: input.model.id, providerID: input.model.providerID };
+    body["model"] =
+      input.model.variant !== undefined
+        ? { id: input.model.id, providerID: input.model.providerID, variant: input.model.variant }
+        : { id: input.model.id, providerID: input.model.providerID };
   }
   if (input.directory) {
     body["location"] = { directory: input.directory };
@@ -254,11 +264,14 @@ export async function switchSessionModel(
   baseUrl: string,
   password: string,
   sessionId: string,
-  model: { id: string; providerID: string },
+  model: { id: string; providerID: string; variant?: string },
   timeoutMs = 15000,
 ): Promise<void> {
   await requestJson(baseUrl, password, "POST", `/api/session/${encodeURIComponent(sessionId)}/model`, {
-    model: { id: model.id, providerID: model.providerID },
+    model:
+      model.variant !== undefined
+        ? { id: model.id, providerID: model.providerID, variant: model.variant }
+        : { id: model.id, providerID: model.providerID },
   }, timeoutMs);
 }
 

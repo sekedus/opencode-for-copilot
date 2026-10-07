@@ -29,7 +29,7 @@ M4 — PLANNED (2026-10-05): approval UX (attention + Copilot levels), thinking-
 - `T-0018` — TypeScript lint (strict unused checks, zero-dep) — COMPLETE (verified 2026-10-05: `npm run lint` green + TS6133 negative check; `tsc` 0, `npm test` 73/73).
 - `T-0019` — Dropped-mapping completeness (PL-0002 + PL-0004 merged) — COMPLETE (verified 2026-10-05: `tsc` 0, `npm test` 84/84, EDH replay green).
 - `T-0020` — Copilot-gated approval + attention ping — COMPLETE (verified 2026-10-07: Allow/Cancel dialog on global Default, silent read/Bypass/Autopilot, trust removed, managed ask-all enforced incl. allow-override proof; OS ping parked PL-0006; `tsc` 0, `npm test` 99/99, EDH test-3/4/5 green).
-- `T-0021` — Thinking-effort picker entries (engine model variants) — PLANNED (M4).
+- `T-0021` — Thinking Effort via configure-model (engine variants, single entry) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 117/117, live create/switch variant probe green, EDH steps 1–7 green incl. same-session effort switch).
 - `T-0022` — Per-folder workspace directory (PL-0003, multi-root) — PLANNED (M4, needs design).
 - `T-0023` — Multimodal tool-result ferry (PL-0001) — PLANNED (M4, largest, needs design).
 

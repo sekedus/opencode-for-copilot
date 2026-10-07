@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0020 COMPLETE, T-0021..T-0023 PLANNED; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0021 COMPLETE, T-0022..T-0023 PLANNED; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,11 +17,14 @@ M4 — IN PROGRESS (2026-10-05): approval UX (attention + Copilot levels default
 
 ## Current Task
 
-T-0021 — Thinking-effort picker entries (`dev/tasks/T-0021-thinking-effort.md`). PLANNED, awaiting go-ahead.
+T-0022 — Per-folder workspace directory (`dev/tasks/T-0022-multiroot-directory.md`). PLANNED, needs design — awaiting scope.
 
 ## Current Step
 
-T-0020 COMPLETE 2026-10-07 (global-Default Allow/Cancel/X/Cancel-deny + read-silent + Copilot-tool untouched + global autoApprove/autopilot silent + stock-engine ask-all incl. explicit-allow override proof; ping parked PL-0005/PL-0006; `tsc` 0, `npm test` 99/99).
+T-0021 COMPLETE 2026-10-07 (single entry + Thinking Effort control, variant
+plumb create/switch + modelKey pin; `tsc` 0, `npm test` 117/117; live probe
+green; EDH steps 1–7 green — same-session High→Low switch, untouched control
+resolves to schema default `medium`).
 
 ## Objective
 
@@ -62,7 +65,9 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Offer T-0020 checkpoint commit (policy: ASK). Then start T-0021 on user go-ahead.
+Offer T-0021 checkpoint commit (policy: ASK). Note: T-0020 bookkeeping edits
+are still uncommitted alongside T-0021 work — confirm commit scope before
+committing. Then scope T-0022 (needs design) with the user.
 
 ## Current Blocker
 
@@ -119,11 +124,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`ea528da feat: dropped-mapping record feeds graveyard and retired-chat notice` (T-0019: 8 files — code + tests + README orphan section + task/roadmap/parking-lot PL-0002+PL-0004/now bookkeeping). Worktree holds PL-0001 fill (yours, pre-existing, unstaged) + M4 task files T-0020..T-0023 (PLANNED, untracked) + this `now.md` bookkeeping.
+`0bfec6b feat: thinking-effort configure-model from engine variants (single entry)` (T-0021: schema + plumbing + tests + README; T-0020 bookkeeping; M4 task files T-0021..T-0023). Worktree clean.
 
 ## README Status
 
-CURRENT — dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
+CURRENT — thinking-effort configure control (T-0021, 2026-10-07: single entry + status `pickerId#variant`) + dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
 
 ## Important Context
 

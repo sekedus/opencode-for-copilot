@@ -21,6 +21,9 @@ import {
   DEFAULT_SESSION_TITLE,
   MAX_ORPHANED_SESSIONS,
   UNKNOWN_DIRECTORY_GROUP,
+  canonicalDirectory,
+  extractMentionedPaths,
+  resolveChatDirectory,
 } from "../src/provider/sessions";
 import { OctHttpError } from "../src/server/client";
 import { DEFAULT_MAX_SESSIONS as CONFIG_DEFAULT_MAX_SESSIONS } from "../src/config";
@@ -982,5 +985,217 @@ describe("provider thinking-effort round-trip (T-0021)", () => {
     assert.equal(byKey.get("conv:effort-pick")?.sessionId, "ses_rt_1", "no fork on effort change");
     assert.equal(byKey.get("conv:effort-pick")?.modelKey, "p/m#low");
     assert.equal(byKey.get("conv:effort-unknown")?.modelKey, "p/m");
+  });
+});
+
+describe("extractMentionedPaths (T-0022)", () => {
+  it("finds attachment-only paths", () => {
+    const msgs = [
+      userMessage(
+        '<userRequest>\n<attachments> <attachment id="a.txt" filePath="c:\\a.txt">x</attachment> </attachments>\n</userRequest>',
+      ),
+    ] as unknown as readonly vscode.LanguageModelChatRequestMessage[];
+    assert.deepEqual(extractMentionedPaths(msgs), ["c:\\a.txt"]);
+  });
+
+  it("finds mixed text+attachment paths in order", () => {
+    const msgs = [
+      userMessage("hello"),
+      userMessage(
+        'review <attachments><attachment id="f1" filePath="D:\\work\\a\\one.ts">x</attachment>' +
+          '<attachment id="f2" filePath="D:\\work\\b\\two.ts">y</attachment></attachments>',
+      ),
+    ] as unknown as readonly vscode.LanguageModelChatRequestMessage[];
+    assert.deepEqual(extractMentionedPaths(msgs), ["D:\\work\\a\\one.ts", "D:\\work\\b\\two.ts"]);
+  });
+
+  it("returns empty when no filePath markup exists", () => {
+    const msgs = [userMessage("plain text, no attachments")] as unknown as readonly vscode.LanguageModelChatRequestMessage[];
+    assert.deepEqual(extractMentionedPaths(msgs), []);
+  });
+});
+
+describe("resolveChatDirectory (T-0022)", () => {
+  const folders = ["D:\\work\\a", "D:\\work\\b"];
+
+  it("prefers message paths over the active editor", () => {
+    assert.equal(
+      resolveChatDirectory({
+        messagePaths: ["D:\\work\\b\\file.ts"],
+        activeEditorPath: "D:\\work\\a\\edit.ts",
+        workspaceFolders: folders,
+      }),
+      "D:\\work\\b",
+    );
+  });
+
+  it("falls back to the active editor when no message matches", () => {
+    assert.equal(
+      resolveChatDirectory({ messagePaths: [], activeEditorPath: "D:\\work\\b\\edit.ts", workspaceFolders: folders }),
+      "D:\\work\\b",
+    );
+  });
+
+  it("falls back to the first folder (single-folder identical)", () => {
+    assert.equal(
+      resolveChatDirectory({ messagePaths: [], activeEditorPath: undefined, workspaceFolders: ["D:\\work"] }),
+      "D:\\work",
+    );
+    assert.equal(
+      resolveChatDirectory({
+        messagePaths: ["D:\\work\\file.ts"],
+        activeEditorPath: undefined,
+        workspaceFolders: ["D:\\work"],
+      }),
+      "D:\\work",
+    );
+  });
+
+  it("returns undefined when no folder is open", () => {
+    assert.equal(
+      resolveChatDirectory({ messagePaths: ["D:\\work\\a\\f.ts"], activeEditorPath: "D:\\work\\a\\e.ts", workspaceFolders: [] }),
+      undefined,
+    );
+  });
+
+  it("matches longest-prefix with separator boundary and drive case", () => {
+    const nested = ["D:\\work", "D:\\work\\proj"];
+    assert.equal(
+      resolveChatDirectory({
+        messagePaths: ["D:\\work\\proj\\file.ts"],
+        activeEditorPath: undefined,
+        workspaceFolders: nested,
+      }),
+      "D:\\work\\proj",
+    );
+    assert.equal(
+      resolveChatDirectory({
+        messagePaths: ["d:\\work\\proj\\file.ts"],
+        activeEditorPath: undefined,
+        workspaceFolders: ["D:\\work\\proj"],
+      }),
+      "D:\\work\\proj",
+    );
+    assert.equal(
+      resolveChatDirectory({
+        messagePaths: ["D:\\work\\proj2\\file.ts"],
+        activeEditorPath: undefined,
+        workspaceFolders: ["D:\\work\\proj"],
+      }),
+      "D:\\work\\proj",
+      "unmatched message skips to the first-folder fallback",
+    );
+  });
+
+  it("ignores garbage paths", () => {
+    assert.equal(
+      resolveChatDirectory({
+        messagePaths: ["/etc/passwd", "not-a-path", ""],
+        activeEditorPath: "D:\\work\\b\\edit.ts",
+        workspaceFolders: folders,
+      }),
+      "D:\\work\\b",
+    );
+  });
+
+  it("canonicalDirectory uppercases a lowercase drive (B-0002 compat)", () => {
+    assert.equal(canonicalDirectory("c:\\work\\a"), "C:\\work\\a");
+    assert.equal(canonicalDirectory(""), "");
+  });
+});
+
+describe("provider multi-root round-trip (T-0022)", () => {
+  it("two chats in different folders create with different directories; reuse pins", async () => {
+    const store = fakeStore({});
+    const provider = new OctChatProvider({
+      baseUrl: "http://127.0.0.1:9",
+      password: "",
+      directory: "D:\\work\\a",
+      sessionStore: store,
+      shuttle: new ToolShuttle(),
+      translator: new PermissionTranslator(),
+      permissionTimeoutMs: 1000,
+      managed: true,
+      maxSessions: 10,
+    });
+    const model = { id: "p/m", providerID: "p", modelID: "m", variantIds: [] } as unknown as OctModel;
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: () => ({ dispose() {} }),
+    } as unknown as vscode.CancellationToken;
+    const progress = { report() {} } as unknown as vscode.Progress<vscode.LanguageModelResponsePart>;
+    const vsc = vscode as unknown as {
+      workspace: { workspaceFolders: unknown };
+      window: { activeTextEditor?: unknown };
+    };
+    const prevFolders = vsc.workspace.workspaceFolders;
+    const prevEditor = vsc.window.activeTextEditor;
+    vsc.workspace.workspaceFolders = [
+      { uri: { fsPath: "D:\\work\\a" } },
+      { uri: { fsPath: "D:\\work\\b" } },
+    ];
+    vsc.window.activeTextEditor = undefined;
+    const createBodies: unknown[] = [];
+    const realFetch = globalThis.fetch;
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async (url: unknown, init?: { method?: string; body?: string }) => {
+      const u = String(url);
+      const method = init?.method ?? "GET";
+      if (u.includes("/api/event")) {
+        const frame = `data: {"type":"session.idle","data":{"sessionID":"ses_x"}}\n\n`;
+        const bytes = new TextEncoder().encode(frame);
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes);
+              controller.close();
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      }
+      if (u.includes("/message?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      if (method === "POST" && u.endsWith("/api/session")) {
+        createBodies.push(JSON.parse(init?.body ?? "{}"));
+        return new Response(JSON.stringify({ data: { id: `ses_multi_${createBodies.length}` } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    };
+    const msgIn = (dir: string) =>
+      [
+        userMessage(
+          `<userRequest>\nreview\n<attachments><attachment id="f" filePath="${dir}\\file.ts">x</attachment></attachments>\n</userRequest>`,
+        ),
+      ] as unknown as readonly vscode.LanguageModelChatRequestMessage[];
+    let snap: Array<{ key: string; sessionId: string; modelKey: string; directory?: string }> = [];
+    try {
+      const turn = (conversationId: string, dir: string) =>
+        provider.provideLanguageModelChatResponse(
+          model,
+          msgIn(dir),
+          { modelOptions: { _conversationId: conversationId }, tools: [] } as unknown as vscode.ProvideLanguageModelChatResponseOptions,
+          progress,
+          token,
+        );
+      await turn("multi-a", "D:\\work\\a");
+      await turn("multi-b", "D:\\work\\b");
+      // Same chat reuses even when the attachment points at the other folder.
+      await turn("multi-a", "D:\\work\\b");
+      snap = provider.mappedSessions();
+    } finally {
+      globalThis.fetch = realFetch;
+      vsc.workspace.workspaceFolders = prevFolders;
+      vsc.window.activeTextEditor = prevEditor;
+      provider.dispose();
+    }
+    assert.equal(createBodies.length, 2, "third turn reuses multi-a (no fork)");
+    const dirOf = (body: unknown) =>
+      (body as { location?: { directory?: string } }).location?.directory;
+    assert.equal(dirOf(createBodies[0]), "D:\\work\\a");
+    assert.equal(dirOf(createBodies[1]), "D:\\work\\b");
+    const byKey = new Map(snap.map((e) => [e.key, e]));
+    assert.equal(byKey.get("conv:multi-a")?.directory, "D:\\work\\a", "reuse pins the create-time directory");
+    assert.equal(byKey.get("conv:multi-b")?.directory, "D:\\work\\b");
   });
 });

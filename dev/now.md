@@ -9,7 +9,7 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0021 COMPLETE, T-0022..T-0023 PLANNED; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0022 COMPLETE, T-0023 PLANNED; roadmap + tasks agree)
 
 ## Current Milestone
 
@@ -17,14 +17,11 @@ M4 — IN PROGRESS (2026-10-05): approval UX (attention + Copilot levels default
 
 ## Current Task
 
-T-0022 — Per-folder workspace directory (`dev/tasks/T-0022-multiroot-directory.md`). PLANNED, needs design — awaiting scope.
+T-0023 — Multimodal tool-result ferry (`dev/tasks/T-0023-multimodal-ferry.md`). PLANNED (M4, largest, needs design).
 
 ## Current Step
 
-T-0021 COMPLETE 2026-10-07 (single entry + Thinking Effort control, variant
-plumb create/switch + modelKey pin; `tsc` 0, `npm test` 117/117; live probe
-green; EDH steps 1–7 green — same-session High→Low switch, untouched control
-resolves to schema default `medium`).
+T-0022 COMPLETE 2026-10-07 (per-chat directory + EDH green: A → `[Downloads\test]`, B → `[Downloads\test3]`, reuse pins `ses_eeae4a…`; `tsc` 0, `npm test` 128/128; README multi-root sentence added). Next: scope T-0023 design with the user.
 
 ## Objective
 
@@ -32,6 +29,16 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
+- T-0022 COMPLETE (20261007): per-chat workspace directory (message > editor > first-folder, create-time pinning, B-0002 colon fix); `tsc` 0, `npm test` 128/128; EDH green (A → `[Downloads\test]` `ses_eeae4a…`, B → `[Downloads\test3]` `ses_eeadf6…`, reuse pins same session). UNCOMMITTED.
+- T-0021 COMPLETE (20261007): single entry + Thinking Effort control, variant
+  plumb create/switch + modelKey pin; `tsc` 0, `npm test` 117/117; live probe
+  green; EDH steps 1–7 green (same-session High→Low switch, untouched control
+  resolves to schema default `medium`). Committed 07ab2f6 (with T-0020
+  bookkeeping).
+- T-0020 COMPLETE (20261007): Copilot-gated approval + attention ping
+  (Allow/Cancel dialog on global Default, silent read/Bypass/Autopilot, trust
+  removed, managed ask-all enforced; OS ping parked PL-0006; `tsc` 0,
+  `npm test` 99/99, EDH test-3/4/5 green). Committed b65f55b.
 - T-0019 COMPLETE (20261005): dropped-mapping record (`oct.droppedConversations.v1` on all 4 paths, graveyard feeds, retired-chat notice; `tsc` 0, `npm test` 84/84, EDH replay green). Committed ea528da.
 - T-0018 COMPLETE (20261005): TS lint gate (`noUnusedLocals`/`noUnusedParameters`, `npm run lint`, negative check; `tsc` 0, `npm test` 73/73). UNCOMMITTED.
 - T-0017 COMPLETE (20261005): cap tuning (default 200, evict-dead-first without burial, `Entry.directory` + grouped status with `time.created` ages; `tsc` 0, `npm test` 73/73). Committed be123c1.
@@ -65,9 +72,11 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Offer T-0021 checkpoint commit (policy: ASK). Note: T-0020 bookkeeping edits
-are still uncommitted alongside T-0021 work — confirm commit scope before
-committing. Then scope T-0022 (needs design) with the user.
+## Next Action
+
+Scope T-0023 design with the user (multimodal ferry, largest in M4). Note: T-0022 + T-0021 checkpoint commits still unoffered
+(policy: ASK) alongside T-0020 bookkeeping edits — confirm commit scope
+separately before committing.
 
 ## Current Blocker
 
@@ -124,11 +133,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`0bfec6b feat: thinking-effort configure-model from engine variants (single entry)` (T-0021: schema + plumbing + tests + README; T-0020 bookkeeping; M4 task files T-0021..T-0023). Worktree clean.
+`07ab2f6 feat: thinking-effort configure-model from engine variants (single entry)` (T-0021: schema + plumbing + tests + README; T-0020 bookkeeping). Worktree holds untracked M4 task files T-0022..T-0023 (PLANNED) + this `now.md` bookkeeping.
 
 ## README Status
 
-CURRENT — thinking-effort configure control (T-0021, 2026-10-07: single entry + status `pickerId#variant`) + dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
+CURRENT — multi-root per-chat directory (T-0022, 2026-10-07: attachment > editor > first-folder, reuse pins) + thinking-effort configure control (T-0021, 2026-10-07: single entry + status `pickerId#variant`) + dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
 
 ## Important Context
 

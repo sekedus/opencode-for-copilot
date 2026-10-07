@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import * as fs from "node:fs";
 import * as vscode from "vscode";
 import { createSession, getSession, OctHttpError, switchSessionModel, type SessionInfo } from "../server/client";
 import { logLine } from "../output";
@@ -192,6 +193,149 @@ export function groupSnapshotsByDirectory<
       return a.localeCompare(b);
     })
     .map(([directory, groupEntries]) => ({ directory, entries: groupEntries }));
+}
+
+/**
+ * Canonicalize a workspace directory before handing it to the engine
+ * (T-0022, shared by `extension.ts` + the provider turn path).
+ *
+ * The engine compares location paths case-sensitively (the instruction
+ * plugin walks ancestors until string equality with no cycle guard), so a
+ * lowercase drive letter (`c:\...`, as VS Code may report it) recurses
+ * forever at the drive root, marks `core/instructions` unavailable, and
+ * poisons every session with `instruction initialization blocked`. Prefer the
+ * on-disk spelling; fall back to an uppercased drive letter.
+ */
+export function canonicalDirectory(dir: string): string {
+  const trimmed = dir.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  try {
+    return fs.realpathSync.native(trimmed);
+  } catch {
+    const drive = trimmed.match(/^([a-z]):/);
+    if (drive?.[1]) {
+      return `${drive[1].toUpperCase()}${trimmed.slice(1)}`;
+    }
+    return trimmed;
+  }
+}
+
+/** Hints for per-chat directory resolution (T-0022, pure). */
+export interface ResolveChatDirectoryHints {
+  messagePaths: readonly string[];
+  activeEditorPath?: string | undefined;
+  workspaceFolders: readonly string[];
+}
+
+/** Normalize a path for folder-prefix comparison (separators + drive case). */
+function normalizeForCompare(p: string): string {
+  let s = p.replace(/\\/g, "/");
+  const drive = s.match(/^([a-zA-Z]):/);
+  if (drive?.[1]) {
+    s = `${drive[1].toUpperCase()}${s.slice(2)}`;
+  }
+  while (s.length > 1 && s.endsWith("/") && s !== "/" && !/^[A-Z]:\/$/.test(s)) {
+    s = s.slice(0, -1);
+  }
+  return s;
+}
+
+/** Longest workspace folder containing `target` (separator-boundary). */
+function longestMatchingFolder(target: string, folders: readonly string[]): string | undefined {
+  const normTarget = normalizeForCompare(target);
+  if (!normTarget) {
+    return undefined;
+  }
+  let best: string | undefined;
+  let bestLen = -1;
+  for (const folder of folders) {
+    if (typeof folder !== "string" || !folder.trim()) {
+      continue;
+    }
+    const normFolder = normalizeForCompare(folder);
+    if (!normFolder) {
+      continue;
+    }
+    if (normTarget === normFolder || normTarget.startsWith(`${normFolder}/`)) {
+      if (normFolder.length > bestLen) {
+        bestLen = normFolder.length;
+        best = folder;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * File paths mentioned in Copilot message text (T-0022, pure).
+ *
+ * Scans `messageText` for `filePath="..."` (attachment markup). Order is
+ * message order, paths in appearance order. Garbage/empty values are dropped.
+ */
+export function extractMentionedPaths(
+  messages: readonly vscode.LanguageModelChatRequestMessage[],
+): string[] {
+  const out: string[] = [];
+  for (const message of messages) {
+    if (!message) {
+      continue;
+    }
+    let text = "";
+    try {
+      text = messageText(message);
+    } catch {
+      continue;
+    }
+    if (!text) {
+      continue;
+    }
+    for (const match of text.matchAll(/filePath="([^"]+)"/g)) {
+      const raw = match[1]?.trim();
+      if (raw) {
+        out.push(raw);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Per-chat workspace directory (T-0022, pure): first hit wins.
+ *
+ * 1. Message context — first mentioned path falling inside a known open
+ *    folder (longest-prefix, case-insensitive drive, separator-boundary).
+ * 2. Active editor — same folder-prefix match.
+ * 3. First-folder fallback — `workspaceFolders[0]`; undefined when no folder
+ *    is open (the VS Code glue falls back to `process.cwd()`, empty to
+ *    undefined).
+ *
+ * Only values from `workspaceFolders` are ever returned, so traversal is
+ * impossible by construction. Callers canonicalize the result; reuse turns
+ * must not rewrite `Entry.directory` (create-time pinning only).
+ */
+export function resolveChatDirectory(hints: ResolveChatDirectoryHints): string | undefined {
+  const folders = (hints.workspaceFolders ?? []).filter(
+    (f): f is string => typeof f === "string" && f.trim() !== "",
+  );
+  for (const rawPath of hints.messagePaths ?? []) {
+    if (typeof rawPath !== "string" || !rawPath.trim()) {
+      continue;
+    }
+    const hit = longestMatchingFolder(rawPath.trim(), folders);
+    if (hit) {
+      return hit;
+    }
+  }
+  const editor = hints.activeEditorPath;
+  if (typeof editor === "string" && editor.trim()) {
+    const hit = longestMatchingFolder(editor.trim(), folders);
+    if (hit) {
+      return hit;
+    }
+  }
+  return folders[0];
 }
 
 /**

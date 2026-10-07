@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
@@ -7,7 +6,15 @@ import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
 import { deleteSession, getSession, listSessions } from "./server/client";
 import { PermissionTranslator } from "./provider/permissions";
-import { isSessionGoneError, groupSnapshotsByDirectory, sessionCreatedMs, formatSessionAge } from "./provider/sessions";
+import {
+  canonicalDirectory,
+  extractMentionedPaths,
+  isSessionGoneError,
+  groupSnapshotsByDirectory,
+  resolveChatDirectory,
+  sessionCreatedMs,
+  formatSessionAge,
+} from "./provider/sessions";
 import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
 
@@ -22,28 +29,32 @@ function workspaceCwd(): string {
 }
 
 /**
- * Canonicalize a workspace directory before handing it to the engine.
- * The engine compares location paths case-sensitively (the instruction
- * plugin walks ancestors until string equality with no cycle guard), so a
- * lowercase drive letter (`c:\...`, as VS Code may report it) recurses
- * forever at the drive root, marks `core/instructions` unavailable, and
- * poisons every session with `instruction initialization blocked`. Prefer the
- * on-disk spelling; fall back to an uppercased drive letter.
+ * Per-turn workspace directory (T-0022, thin VS Code glue).
+ *
+ * Resolution chain (first hit wins): message `filePath="..."` attachments >
+ * active editor > first-folder fallback. Only open-folder values are ever
+ * returned; the result is canonicalized. No open folder falls back to
+ * `process.cwd()` (empty to undefined). The server manager `cwd` stays
+ * `workspaceCwd()` (process-wide); only session-create `location.directory`
+ * goes per-chat.
  */
-function canonicalDirectory(dir: string): string {
-  const trimmed = dir.trim();
-  if (!trimmed) {
-    return trimmed;
+export function resolveTurnDirectory(
+  messages: readonly vscode.LanguageModelChatRequestMessage[],
+): string | undefined {
+  const folders = (vscode.workspace.workspaceFolders ?? [])
+    .map((folder) => folder?.uri?.fsPath)
+    .filter((p): p is string => typeof p === "string" && p.trim() !== "");
+  const messagePaths = extractMentionedPaths(messages);
+  const activeEditorPath = vscode.window.activeTextEditor?.document?.uri?.fsPath;
+  const resolved = resolveChatDirectory({ messagePaths, activeEditorPath, workspaceFolders: folders });
+  if (typeof resolved === "string" && resolved.trim()) {
+    return canonicalDirectory(resolved);
   }
-  try {
-    return fs.realpathSync.native(trimmed);
-  } catch {
-    const drive = trimmed.match(/^([a-z]):/);
-    if (drive?.[1]) {
-      return `${drive[1].toUpperCase()}${trimmed.slice(2)}`;
-    }
-    return trimmed;
+  if (folders.length === 0) {
+    const canon = canonicalDirectory(process.cwd() ?? "");
+    return canon.trim() ? canon : undefined;
   }
+  return undefined;
 }
 
 async function promptReload(reason: string): Promise<void> {

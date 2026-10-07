@@ -172,5 +172,5 @@ feat: thinking-effort configure-model from engine variants (single entry)
 Commit status:
 
 ```text
-COMMITTED (0bfec6b)
+COMMITTED (07ab2f6)
 ```

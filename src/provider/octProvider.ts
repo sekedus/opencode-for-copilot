@@ -3,7 +3,7 @@ import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
 import { toOctModels, resolveReasoningEffort, type OctModel } from "./models";
 import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
-import { conversationKey, DELETED_SESSION_MESSAGE, DROPPED_SESSION_MESSAGE, isSessionGoneError, OctSessionMap, sessionTitleFromMessages, type SessionModelRef } from "./sessions";
+import { conversationKey, DELETED_SESSION_MESSAGE, DROPPED_SESSION_MESSAGE, canonicalDirectory, extractMentionedPaths, isSessionGoneError, OctSessionMap, resolveChatDirectory, sessionTitleFromMessages, type SessionModelRef } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
 import { mapCopilotTools, type ToolShuttle } from "./tools";
 import { type PermissionTranslator } from "./permissions";
@@ -37,6 +37,54 @@ function estimateTokens(text: string): number {
     return 0;
   }
   return Math.max(1, Math.ceil(text.length / 4));
+}
+
+/**
+ * Per-turn workspace directory (T-0022).
+ *
+ * Mirror of `resolveTurnDirectory` in `extension.ts` (kept local to avoid a
+ * provider→extension import cycle; `extension.ts` owns the provider). Chain:
+ * message `filePath="..."` > active editor > first folder; no folder falls
+ * back to `process.cwd()` (empty to undefined). Only open-folder values are
+ * ever returned; the result is canonicalized.
+ */
+function resolveProviderTurnDirectory(
+  messages: readonly vscode.LanguageModelChatRequestMessage[],
+): string | undefined {
+  const rawFolders = vscode.workspace.workspaceFolders;
+  const folders: string[] = Array.isArray(rawFolders)
+    ? rawFolders
+        .map((folder) => (folder as { uri?: { fsPath?: unknown } })?.uri?.fsPath)
+        .filter((p): p is string => typeof p === "string" && p.trim() !== "")
+    : [];
+  let messagePaths: string[] = [];
+  try {
+    messagePaths = extractMentionedPaths(messages);
+  } catch {
+    messagePaths = [];
+  }
+  const activeEditorPath = (
+    vscode.window as {
+      activeTextEditor?: { document?: { uri?: { fsPath?: unknown } } };
+    }
+  )?.activeTextEditor?.document?.uri?.fsPath;
+  const resolved = resolveChatDirectory({
+    messagePaths,
+    activeEditorPath: typeof activeEditorPath === "string" ? activeEditorPath : undefined,
+    workspaceFolders: folders,
+  });
+  if (typeof resolved === "string" && resolved.trim()) {
+    return canonicalDirectory(resolved);
+  }
+  if (folders.length === 0) {
+    try {
+      const canon = canonicalDirectory(process.cwd() ?? "");
+      return canon.trim() ? canon : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 export class OctChatProvider implements vscode.LanguageModelChatProvider<OctModel> {
@@ -118,13 +166,18 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
     if (!model || typeof model.providerID !== "string" || typeof model.modelID !== "string") {
       throw new Error("OCT: unknown model selected. Refresh models and try again.");
     }
+    // T-0022: per-chat workspace directory (message paths > active editor >
+    // first folder). Used for the hash-fallback key input + session-create
+    // `location.directory` at create time only — reuse turns never rewrite
+    // `Entry.directory`, so switching editors mid-chat never moves a mapping.
+    const turnDirectory = resolveProviderTurnDirectory(messages) ?? this.deps.directory;
     const key = conversationKey(
       { modelOptions: options.modelOptions as Record<string, unknown> | undefined },
       model.id,
       messages,
-      this.deps.directory,
+      turnDirectory,
     );
-    const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: this.deps.directory };
+    const sessionDeps = { baseUrl: this.deps.baseUrl, password: this.deps.password, directory: turnDirectory };
     // Thinking Effort (T-0021, proposed API — stable types lack
     // `modelConfiguration`, so read it via a minimal cast): the picker's
     // resolved `reasoningEffort` for this model, validated against the
@@ -294,7 +347,7 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
         const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
         if (isInstructionBlockedError(retryMessage)) {
           throw new Error(
-            `OCT: engine instruction discovery is unavailable (core/instructions) for '${this.deps.directory}'. ` +
+            `OCT: engine instruction discovery is unavailable (core/instructions) for '${turnDirectory}'. ` +
               `The server could not read the AGENTS.md instruction files — check the directory exists and the files are readable, ` +
               `then reload the window to restart the managed engine and try again. Engine detail: ${retryMessage}`,
           );

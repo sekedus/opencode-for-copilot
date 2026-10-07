@@ -17,7 +17,7 @@ Opencode runs as a background local engine; Copilot Chat stays the GUI; this ext
 - Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only (verified against 2.0.21).
 - Disabled by default; explicit `OCT: Enable` + reload required (background RAM cost).
 - Pick an `OCT` model in the Copilot model picker; multi-turn conversations reuse one opencode session.
-- Engine sessions carry titles derived from the first user message (empty/attachment-only → unique `OCT: <key8> <MM-DD HH:mm>` fallback); `OCT: Show Status` lists mapped conversations grouped by workspace directory with per-entry ages and prunes dead entries.
+- Engine sessions carry titles derived from the first user message (empty/attachment-only → unique `OCT: <key8> <MM-DD HH:mm>` fallback); `OCT: Show Status` lists mapped conversations grouped by workspace directory with per-entry ages and prunes dead entries. In multi-root workspaces each chat maps under its own folder (attachment > active editor > first folder); switching editors mid-chat never moves a live mapping.
 - Thinking Effort: models whose engine entry reports `variants[]` expose a `...` → Thinking Effort picker control (Low / Medium / High — only reported ids, one picker row per model); the pick travels as the engine model variant on create and mid-chat switches (status shows `pickerId#variant`). Models without variants behave exactly as before.
 
 ## Setup

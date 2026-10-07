@@ -23,17 +23,15 @@ engine-native `read` (accurate descriptions of all 6 images) and PIL+OCR.
 
 Action:
 
-DEFER
-
-Reason:
-
-Needs design (binary transport via plugin callback vs engine prompt
-`files` field; cap/permission implications) — bigger than verification.
-Matches B-0004 follow-up and T-0015 out-of-scope "multimodal deferred".
+RESOLVED by T-0023 (2026-10-07, EDH A+B green + regression pass): attached
+images ride prompt `files`, `view_image` results ride the executor return as
+engine-native `data:` file parts (15 MB/image, 50/40 MB per-turn caps,
+oversize degrades to placeholder). `file://` in tool content is rejected by
+the provider — `data:`-only.
 
 Revisit When:
 
-Image tools matter to users / a multimodal task is scoped.
+Image caps need retuning (provider limits move) or video/pdf join the ferry.
 
 ## PL-0002
 
@@ -77,12 +75,12 @@ only `Open Folder` split groups.
 
 Action:
 
-DEFER (needs design: per-chat folder resolution + map key/directory
-implications; single-folder behavior unchanged).
+RESOLVED by T-0022 (2026-10-07, EDH green): per-chat resolution
+(message > editor > first-folder, create-time pinning).
 
 Revisit When:
 
-Multi-root support is scoped.
+Multi-root behavior needs revisiting.
 
 ## PL-0004
 

@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
 import { logLine } from "../output";
+import { isImageMime, type ToolFilePart } from "./images";
 
 function randomToken(): string {
   return randomBytes(32).toString("base64url");
@@ -21,14 +22,17 @@ function randomToken(): string {
  * - `callId` mapping: the engine tool id doubles as the Copilot `callId`
  *   (unique per call); sanitized plugin names map back to Copilot names here.
  *
- * Security: loopback-only server (`127.0.0.1`, ephemeral port), 1 MB body
- * cap, no timeout on held responses except a 10-minute safety abort. Inputs
+ * Security: loopback-only server (`127.0.0.1`, ephemeral port), 32 MB body
+ * cap (covers one 20 MB image as base64 + JSON envelope; per-image/per-turn
+ * caps in `images.ts` still apply), no timeout on held responses except a
+ * 10-minute safety abort. Inputs
  * may carry sensitive data — logs record tool names/sizes, never content.
  */
 
 export const BRIDGE_TOOL_PREFIX = "oct__";
 
-const MAX_BODY_BYTES = 1_000_000;
+/** Callback body cap: one 20 MB image as base64 (~27 MB) + JSON envelope. */
+const MAX_BODY_BYTES = 32 * 1024 * 1024;
 const HELD_RESPONSE_SAFETY_MS = 10 * 60_000;
 /** Consecutive identical calls before the circuit breaker short-circuits. */
 const REPEAT_BREAKER_N = 3;
@@ -57,7 +61,7 @@ export interface BlockedCall {
 }
 
 interface HeldResponder {
-  respond: (reply: { text: string; aborted: boolean }) => void;
+  respond: (reply: { text: string; aborted: boolean; files?: ToolFilePart[] }) => void;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -101,11 +105,14 @@ export function mapCopilotTools(tools: readonly vscode.LanguageModelChatTool[]):
 }
 
 /** Cap host result text: pathological outputs must not blow up engine context. */
-const MAX_RESULT_CHARS = 100_000;
+export const MAX_RESULT_CHARS = 100_000;
 
-/** Serialize host tool-result content to the plain text the executor returns. */
+/** Serialize host tool-result content to the plain text the executor returns.
+ * Image data parts become short `[Image …]` markers here — the bytes ride
+ * `files` via `extractToolResults` (T-0023), never this text. */
 export function toolResultToText(content: readonly unknown[]): string {
   const parts: string[] = [];
+  let imageIndex = 0;
   for (const part of content) {
     if (part instanceof vscode.LanguageModelTextPart) {
       if (part.value) {
@@ -114,7 +121,14 @@ export function toolResultToText(content: readonly unknown[]): string {
       continue;
     }
     if (part instanceof vscode.LanguageModelDataPart) {
-      parts.push(`[Attachment omitted: ${part.mimeType} (${part.data.byteLength} bytes) — non-text content not yet supported]`);
+      const mime = typeof part.mimeType === "string" ? part.mimeType : "unknown";
+      const bytes = typeof part.data?.byteLength === "number" ? part.data.byteLength : 0;
+      if (isImageMime(mime) && bytes > 0) {
+        imageIndex += 1;
+        parts.push(`[Image ${imageIndex}: ${mime} (${bytes} bytes)]`);
+      } else {
+        parts.push(`[Attachment omitted: ${mime} (${bytes} bytes) — non-text content not yet supported]`);
+      }
       continue;
     }
     if (typeof part === "string") {
@@ -264,8 +278,8 @@ export class ToolShuttle {
     return this.blocked.get(sessionID)?.size ?? 0;
   }
 
-  /** Resolve one held executor with host result text. Returns false when unknown. */
-  resolve(sessionID: string, engineId: string, text: string): boolean {
+  /** Resolve one held executor with host result text + image files. Returns false when unknown. */
+  resolve(sessionID: string, engineId: string, text: string, files?: ToolFilePart[]): boolean {
     const table = this.blocked.get(sessionID);
     const held = table?.get(engineId);
     if (!held) {
@@ -273,8 +287,13 @@ export class ToolShuttle {
     }
     table!.delete(engineId);
     this.emitted.get(sessionID)?.delete(engineId);
-    logLine(`Tool result to engine: ${held.originalName} (${text.length} chars).`);
-    held.respond({ text, aborted: false });
+    const fileCount = files?.length ?? 0;
+    logLine(
+      `Tool result to engine: ${held.originalName} (${text.length} chars` +
+        (fileCount > 0 ? `, ${String(fileCount)} file(s)` : "") +
+        `).`,
+    );
+    held.respond({ text, aborted: false, ...(files && files.length > 0 ? { files } : {}) });
     return true;
   }
 
@@ -393,7 +412,7 @@ export class ToolShuttle {
       req.on("data", (chunk: Buffer) => {
         bytes += chunk.length;
         if (bytes > MAX_BODY_BYTES) {
-          reject(new Error("Callback body exceeds 1 MB."));
+          reject(new Error("Callback body exceeds 32 MB."));
           req.destroy();
           return;
         }
@@ -483,7 +502,14 @@ export class ToolShuttle {
         try {
           if (!res.writableEnded) {
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ ok: true, text: reply.text, aborted: reply.aborted }));
+            res.end(
+              JSON.stringify({
+                ok: true,
+                text: reply.text,
+                aborted: reply.aborted,
+                ...(reply.files && reply.files.length > 0 ? { files: reply.files } : {}),
+              }),
+            );
           }
         } catch (error) {
           logLine(`Tool reply to ${originalName} failed (executor gone): ${error instanceof Error ? error.message : String(error)}`);

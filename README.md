@@ -50,7 +50,7 @@ Engine-native actions (edit/write/shell/…) pause the turn with an `OCT needs a
 
 - Managed mode installs the plugin automatically (`OPENCODE_CONFIG_CONTENT` merges with user plugins) and wires the loopback callback (`OCT_CALLBACK_URL`/`OCT_CALLBACK_TOKEN`). It also injects ask-all engine permissions (`{"permissions":[{"action":"*","resource":"*","effect":"ask"}]}`, appended last so it overrides global + workspace files without touching them) so Copilot Default→ask is enforceable; `opencode.json(c)` permission rules are otherwise ignored.
 - External mode (`oct.opencodeUrl`) needs manual install: copy `plugin/oct-tools` to the server, add its absolute path to the server's `plugins` config, and export `OCT_CALLBACK_URL` (from `OCT: Show Status`) plus `OCT_CALLBACK_TOKEN` matching `oct.callbackToken` (set one — the default per-window token cannot be pasted into a persistent server env). Without the plugin, engine-native tools are the fallback (no text-only notice, no crash). External servers must set permissions ask-all themselves, otherwise Copilot Default→ask is unenforceable (the engine allows silently).
-- Text-only results: image-producing tools return a placeholder (multimodal deferred); a circuit breaker stops runaway identical-call loops with a proceed-with-what-you-have instruction.
+- Image results: image-producing tools ferry bytes to the vision model (tool results ride the executor return as engine-native `data:` `file` parts; attached images ride prompt `files`), within caps (per-image 15 MB, per-turn 50 images / 40 MB total — oversize degrades to the placeholder). A circuit breaker stops runaway identical-call loops with a proceed-with-what-you-have instruction.
 
 ## Orphaned engine sessions
 

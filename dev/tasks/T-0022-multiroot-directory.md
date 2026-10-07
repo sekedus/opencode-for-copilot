@@ -123,5 +123,5 @@ feat: per-chat workspace directory for multi-root
 Commit status:
 
 ```text
-UNCOMMITTED
+COMMITTED (bbd2d48)
 ```

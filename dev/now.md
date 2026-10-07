@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0022 COMPLETE, T-0023 PLANNED; roadmap + tasks agree)
+CONSISTENT (T-0001..T-0023 COMPLETE; roadmap + tasks agree, no open tasks)
 
 ## Current Milestone
 
-M4 — IN PROGRESS (2026-10-05): approval UX (attention + Copilot levels default/allow-all/autopilot), thinking-effort picker, parked PL-0001..PL-0004, TS lint (T-0018 done). Order: T-0018 → T-0023 (easiest first).
+M4 — COMPLETE (2026-10-07): approval UX, thinking-effort picker, parked PL-0001..PL-0004, TS lint. All verified.
 
 ## Current Task
 
-T-0023 — Multimodal tool-result ferry (`dev/tasks/T-0023-multimodal-ferry.md`). PLANNED (M4, largest, needs design).
+None — T-0023 complete 2026-10-07, no open tasks. Awaiting next scope.
 
 ## Current Step
 
-T-0022 COMPLETE 2026-10-07 (per-chat directory + EDH green: A → `[Downloads\test]`, B → `[Downloads\test3]`, reuse pins `ses_eeae4a…`; `tsc` 0, `npm test` 128/128; README multi-root sentence added). Next: scope T-0023 design with the user.
+T-0023 COMPLETE 2026-10-07 (image ferry data:-only + 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Next: commit checkpoint (policy ASK).
 
 ## Objective
 
@@ -29,7 +29,8 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0022 COMPLETE (20261007): per-chat workspace directory (message > editor > first-folder, create-time pinning, B-0002 colon fix); `tsc` 0, `npm test` 128/128; EDH green (A → `[Downloads\test]` `ses_eeae4a…`, B → `[Downloads\test3]` `ses_eeadf6…`, reuse pins same session). UNCOMMITTED.
+- T-0023 COMPLETE (20261007): multimodal image ferry (attached via prompt `files`, `view_image` via executor `data:` file parts; `file://` rejected by provider — corrected; 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Committed 038510b.
+- T-0022 COMPLETE (20261007): per-chat workspace directory (message > editor > first-folder, create-time pinning, B-0002 colon fix); `tsc` 0, `npm test` 128/128; EDH green (A → `[Downloads\test]` `ses_eeae4a…`, B → `[Downloads\test3]` `ses_eeadf6…`, reuse pins same session). Committed 038510b (bookkeeping).
 - T-0021 COMPLETE (20261007): single entry + Thinking Effort control, variant
   plumb create/switch + modelKey pin; `tsc` 0, `npm test` 117/117; live probe
   green; EDH steps 1–7 green (same-session High→Low switch, untouched control
@@ -74,7 +75,7 @@ STATE_M3_OPENED
 
 ## Next Action
 
-Scope T-0023 design with the user (multimodal ferry, largest in M4). Note: T-0022 + T-0021 checkpoint commits still unoffered
+Commit T-0023 checkpoint now (ferry + caps + tests + docs)? Policy is ASK — saying yes commits only the current worktree changes. Note: T-0022 + T-0021 bookkeeping edits ride along; confirm scope separately before committing.
 (policy: ASK) alongside T-0020 bookkeeping edits — confirm commit scope
 separately before committing.
 
@@ -133,11 +134,11 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`07ab2f6 feat: thinking-effort configure-model from engine variants (single entry)` (T-0021: schema + plumbing + tests + README; T-0020 bookkeeping). Worktree holds untracked M4 task files T-0022..T-0023 (PLANNED) + this `now.md` bookkeeping.
+`038510b feat: ferry image bytes from bridged tool results` (T-0023: ferry + caps + tests + docs; T-0021/T-0022 bookkeeping). Worktree clean.
 
 ## README Status
 
-CURRENT — multi-root per-chat directory (T-0022, 2026-10-07: attachment > editor > first-folder, reuse pins) + thinking-effort configure control (T-0021, 2026-10-07: single entry + status `pickerId#variant`) + dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
+CURRENT — image ferry (T-0023, 2026-10-07: tool results via executor `data:` parts + attached via prompt `files`, 15 MB cap) + multi-root per-chat directory (T-0022, 2026-10-07: attachment > editor > first-folder, reuse pins) + thinking-effort configure control (T-0021, 2026-10-07: single entry + status `pickerId#variant`) + dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
 
 ## Important Context
 

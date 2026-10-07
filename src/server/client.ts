@@ -317,17 +317,24 @@ export async function listSessionMessages(
 
 /**
  * `POST /api/session/:id/prompt` — admit one input, schedule agent-loop
- * execution. T-0003 consumes this for chat turns.
+ * execution. T-0003 consumes this for chat turns; T-0023 adds optional
+ * prompt `files` (image ferry: `{uri, name?}` — `data:` URIs or `file://`).
  */
+export interface PromptFileAttachment {
+  uri: string;
+  name?: string;
+}
+
 export async function promptSession(
   baseUrl: string,
   password: string,
   sessionId: string,
-  input: { text: string },
+  input: { text: string; files?: PromptFileAttachment[] },
   timeoutMs = 15000,
 ): Promise<unknown> {
   return requestJson(baseUrl, password, "POST", `/api/session/${encodeURIComponent(sessionId)}/prompt`, {
     text: input.text,
+    ...(input.files && input.files.length > 0 ? { files: input.files } : {}),
   }, timeoutMs);
 }
 

@@ -52,6 +52,18 @@ async function fetchJson(url, options, timeoutMs) {
   }
 }
 
+function validFilePart(file) {
+  return (
+    file &&
+    typeof file === "object" &&
+    typeof file.uri === "string" &&
+    file.uri.length > 0 &&
+    typeof file.mime === "string" &&
+    (file.mime.toLowerCase().startsWith("image/") || file.mime.toLowerCase() === "application/pdf") &&
+    (file.name === undefined || typeof file.name === "string")
+  );
+}
+
 function makeExecutor(toolName) {
   return async (input, context) => {
     if (!CALLBACK_URL) {
@@ -85,7 +97,29 @@ function makeExecutor(toolName) {
         return { content: reply.text ?? `Tool ${toolName} aborted before the host returned a result.` };
       }
       const text = reply && typeof reply.text === "string" ? reply.text : "";
-      return { content: text || "(empty tool result)" };
+      // T-0023 image ferry: the extension may attach `files` (Tool file
+      // parts). Return engine-native content so the vision model sees bytes,
+      // not a placeholder. Text-only replies keep the old string shape.
+      const files = reply && Array.isArray(reply.files) ? reply.files.filter(validFilePart) : [];
+      if (files.length === 0) {
+        return { content: text || "(empty tool result)" };
+      }
+      const content = [];
+      if (text) {
+        content.push({ type: "text", text });
+      }
+      for (const file of files) {
+        content.push({
+          type: "file",
+          uri: file.uri,
+          mime: file.mime,
+          ...(typeof file.name === "string" && file.name ? { name: file.name } : {}),
+        });
+      }
+      if (content.length === 0) {
+        content.push({ type: "text", text: "(empty tool result)" });
+      }
+      return { content };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Interrupt fires context.signal: the engine already marks the call

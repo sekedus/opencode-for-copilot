@@ -2,10 +2,11 @@ import * as vscode from "vscode";
 import { interruptSession, listModels } from "../server/client";
 import { logLine } from "../output";
 import { toOctModels, resolveReasoningEffort, type OctModel } from "./models";
-import { buildPromptText, extractToolResults, hasToolParts } from "./messages";
+import { buildPromptWithImages, extractToolResults, hasToolParts } from "./messages";
 import { conversationKey, DELETED_SESSION_MESSAGE, DROPPED_SESSION_MESSAGE, canonicalDirectory, extractMentionedPaths, isSessionGoneError, OctSessionMap, resolveChatDirectory, sessionTitleFromMessages, type SessionModelRef } from "./sessions";
 import { isInstructionBlockedError, streamTurn } from "./streaming";
 import { mapCopilotTools, type ToolShuttle } from "./tools";
+import type { ToolFilePart } from "./images";
 import { type PermissionTranslator } from "./permissions";
 
 /**
@@ -226,21 +227,26 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
       this.deps.shuttle.clearPending(sid);
       await interruptSession(this.deps.baseUrl, this.deps.password, sid);
     };
-    const runContinuation = async (sid: string, matched: Array<{ callId: string; text: string }>): Promise<void> => {
+    const runContinuation = async (
+      sid: string,
+      matched: Array<{ callId: string; text: string; files: ToolFilePart[] }>,
+    ): Promise<void> => {
       // Feed host results back WITHOUT prompting: the engine loop is blocked
       // in the executors. Resolve synchronously BEFORE streaming: deferring
       // the resolve past subscription lets the guard divert the continuation
       // to a new pause first, starving the oldest call forever (B-0004).
-      // No text is lost by resolving early — the engine needs a full model
-      // round-trip before it can stream new deltas, long after SSE opens.
+      // Image bytes ride the executor return (T-0023) as `data:` file parts;
+      // no new admission. No text is lost by resolving early — the engine
+      // needs a full model round-trip before it can stream new deltas, long
+      // after SSE opens.
       for (const result of matched) {
-        this.deps.shuttle.resolve(sid, result.callId, result.text);
+        this.deps.shuttle.resolve(sid, result.callId, result.text, result.files.length > 0 ? result.files : undefined);
       }
       const outcome = await streamTurn({ ...streamDepsFor(sid), promptText: null }, progress, token, hooks);
       await finishTurn(sid, outcome);
     };
     const runNewTurn = async (sid: string): Promise<void> => {
-      const promptText = buildPromptText(messages);
+      const { text: promptText, files: promptFiles } = buildPromptWithImages(messages);
       const copilotTools = options.tools ?? [];
       if (copilotTools.length > 0) {
         const bridgeAvailable = this.deps.managed || this.deps.shuttle.bridgeSeen;
@@ -264,8 +270,21 @@ export class OctChatProvider implements vscode.LanguageModelChatProvider<OctMode
         // as text context (placeholders for non-text); no text-only notice.
         logLine(`Turn on ${sid} carries tool parts without definitions; engine tools are the fallback.`);
       }
-      logLine(`Turn on ${sid} (${modelRef.pickerId}${modelRef.variant ? `#${modelRef.variant}` : ""}, ${promptText.length} chars).`);
-      const outcome = await streamTurn({ ...streamDepsFor(sid), promptText }, progress, token, hooks);
+      logLine(
+        `Turn on ${sid} (${modelRef.pickerId}${modelRef.variant ? `#${modelRef.variant}` : ""}, ${promptText.length} chars` +
+          (promptFiles.length > 0 ? `, ${String(promptFiles.length)} image file(s)` : "") +
+          `).`,
+      );
+      const outcome = await streamTurn(
+        {
+          ...streamDepsFor(sid),
+          promptText,
+          ...(promptFiles.length > 0 ? { promptFiles } : {}),
+        },
+        progress,
+        token,
+        hooks,
+      );
       await finishTurn(sid, outcome);
     };
     // Route to the shuttle loop: results matching blocked executors continue

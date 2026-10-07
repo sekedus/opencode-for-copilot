@@ -6,6 +6,7 @@ import {
   octJoinUrl,
   promptSession,
   replySessionPermission,
+  type PromptFileAttachment,
 } from "../server/client";
 import { logLine } from "../output";
 import { parsePermissionAsked, type PermissionTranslator } from "./permissions";
@@ -44,6 +45,8 @@ export interface StreamDeps {
   sessionId: string;
   /** Null = continuation turn: stream without admitting a new prompt. */
   promptText: string | null;
+  /** Image files admitted alongside the prompt (T-0023; new turns only). */
+  promptFiles?: PromptFileAttachment[];
   timeoutMs?: number;
 }
 
@@ -211,7 +214,7 @@ export async function streamTurn(
   token: vscode.CancellationToken,
   hooks: TurnHooks = {},
 ): Promise<TurnOutcome> {
-  const { baseUrl, password, sessionId, promptText } = deps;
+  const { baseUrl, password, sessionId, promptText, promptFiles } = deps;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const shuttle = hooks.shuttle;
   const translator = hooks.translator;
@@ -289,7 +292,12 @@ export async function streamTurn(
   try {
     const stream = readSse(octJoinUrl(baseUrl, "/api/event"), octAuthHeaders(password), controller.signal);
     if (promptText !== null) {
-      promptPromise = promptSession(baseUrl, password, sessionId, { text: promptText }).catch((error: unknown) => {
+      promptPromise = promptSession(
+        baseUrl,
+        password,
+        sessionId,
+        promptFiles && promptFiles.length > 0 ? { text: promptText, files: promptFiles } : { text: promptText },
+      ).catch((error: unknown) => {
         // Admission failures (unknown session, validation, timeout) are
         // authoritative — no terminal event will follow, so mark the turn and
         // let the stream loop exit instead of hanging until the turn timeout.

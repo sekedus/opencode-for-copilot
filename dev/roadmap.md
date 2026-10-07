@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M4 — PLANNED (2026-10-05): approval UX (attention + Copilot levels), thinking-effort picker, parked scale/mill work (PL-0001..PL-0004), TypeScript lint. Easiest first; PL-0002+PL-0004 and notification+levels merged.
+M4 — COMPLETE (2026-10-07): approval UX (attention + Copilot levels), thinking-effort picker, parked scale/mill work (PL-0001..PL-0004), TypeScript lint. All items verified.
 
 ## Tasks
 
@@ -31,11 +31,11 @@ M4 — PLANNED (2026-10-05): approval UX (attention + Copilot levels), thinking-
 - `T-0020` — Copilot-gated approval + attention ping — COMPLETE (verified 2026-10-07: Allow/Cancel dialog on global Default, silent read/Bypass/Autopilot, trust removed, managed ask-all enforced incl. allow-override proof; OS ping parked PL-0006; `tsc` 0, `npm test` 99/99, EDH test-3/4/5 green).
 - `T-0021` — Thinking Effort via configure-model (engine variants, single entry) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 117/117, live create/switch variant probe green, EDH steps 1–7 green incl. same-session effort switch).
 - `T-0022` — Per-folder workspace directory (PL-0003, multi-root) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 128/128, two-folder EDH green).
-- `T-0023` — Multimodal tool-result ferry (PL-0001) — PLANNED (M4, largest, needs design).
+- `T-0023` — Multimodal tool-result ferry (PL-0001) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 147/147, EDH A+B green + regression pass).
 
 ## Future Milestones
 
-- None defined — post-M2 scope undecided (standing OPEN: EDH redo with image workspace + Steps 3–8).
+- None defined — post-M4 scope undecided.
 
 ## Roadmap Rules
 

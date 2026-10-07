@@ -69,5 +69,5 @@ chore: typescript lint gate (strict unused checks)
 Commit status:
 
 ```text
-UNCOMMITTED (offer per policy: ask)
+COMMITTED (04a6972)
 ```

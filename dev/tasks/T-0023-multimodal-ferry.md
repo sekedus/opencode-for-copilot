@@ -271,5 +271,5 @@ feat: ferry image bytes from bridged tool results
 Commit status:
 
 ```text
-COMMITTED (038510b)
+COMMITTED (6208b4f)
 ```

@@ -14,6 +14,7 @@ Opencode runs as a background local engine; Copilot Chat stays the GUI; this ext
 
 - Milestone M1 (text-only MVP) COMPLETE: `T-0001` shell + gate, `T-0002` server manager, `T-0003` chat provider with 1 conversation = 1 session reuse — all verified 2026-09-29.
 - Milestone M2 tool bridge (`T-0006`) COMPLETE and verified 2026-10-02: Copilot tools execute through the engine via a bundled plugin + shuttle loop; engine-native permission requests surface as VS Code confirmations with default-deny.
+- Milestones M3 (scale hardening, `T-0011`–`T-0017`, COMPLETE 2026-10-05) + M4 (`T-0018`–`T-0023`, COMPLETE 2026-10-07): session cap default 200 with evict-dead-first + grouped status, prune-on-start, deleted/dropped-session notices, `OCT / <name>` branding, Copilot-primary/engine-fallback priority, orphan graveyard + cleanup command, TS lint gate, Copilot-gated Allow/Cancel approvals (`read` silent, Bypass/Autopilot silent, no session trust, managed ask-all), Thinking Effort variants, per-chat workspace directory, image ferry (`data:` file parts + prompt `files`; 15 MB/image, 50/40 MB per-turn caps).
 - Provider vendor `oct`, display `OCT`, VS Code `^1.125.0`, opencode v2 only (verified against 2.0.21).
 - Disabled by default; explicit `OCT: Enable` + reload required (background RAM cost).
 - Pick an `OCT` model in the Copilot model picker; multi-turn conversations reuse one opencode session.

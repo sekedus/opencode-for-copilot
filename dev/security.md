@@ -38,7 +38,7 @@ Mark only what applies:
 Describe the most important trust boundaries:
 
 - Untrusted users: local VS Code user only (no multi-user; extension host trusts workspace content as usual). Engine tool output and Copilot tool results are untrusted input to the other side (prompt-injection / tool-abuse boundary).
-- Public endpoints: none. Engine binds loopback `127.0.0.1` by default; the extension itself listens on a loopback-only ephemeral callback (`127.0.0.1`, random port) for the tool shuttle, guarded by a bearer token (`OCT_CALLBACK_TOKEN` / `oct.callbackToken`); 1 MB body cap.
+- Public endpoints: none. Engine binds loopback `127.0.0.1` by default; the extension itself listens on a loopback-only ephemeral callback (`127.0.0.1`, random port) for the tool shuttle, guarded by a bearer token (`OCT_CALLBACK_TOKEN` / `oct.callbackToken`); 32 MB body cap (image ferry, T-0023; logs record names/sizes only, never bytes).
 - Authentication boundary: opencode server password (`OPENCODE_SERVER_PASSWORD` / Basic `opencode:<password>`); callback bearer token (managed mode: per-window random; external mode: user-configured stable token); external URL override is explicit opt-in.
 - Authorization boundary: session IDs are per-conversation secrets persisted in `globalState` (`oct.conversationSessions.v1`); never expose across conversations. The callback token authorizes plugin → extension posts only.
 - Sensitive data: chat text, tool inputs/outputs, workspace paths, server password, callback token. Never log password/token/headers/content; tool-shuttle logs record names/sizes only; approval decisions log action + resources only.
@@ -46,7 +46,7 @@ Describe the most important trust boundaries:
 - Files / parsing: SSE + JSON from loopback engine plus loopback plugin callbacks; workspace folder path validated as absolute open-folder path; plugin installed via `OPENCODE_CONFIG_CONTENT` merge (managed) or manual absolute-path install (external).
 - Network egress: loopback to engine; engine's own upstream calls out of scope.
 - Deployment/infrastructure: local VSIX; no cloud, no CI secrets.
-- Approvals: engine-native actions (`permission.asked/reply`) pause for a VS Code confirmation (once / client-side always-for-session auto-`once` / cancel) with default-deny on timeout, dismiss, disconnect, or cancellation; the bridge never sends `always` and never propagates VS Code Allow-all.
+- Approvals: engine-native actions (`permission.asked/reply`) follow ONLY Copilot's global `chat.permissions.default` read fresh every time (T-0020): `read` always auto-`once` silently; non-read asks with Allow/Cancel on Default (also missing/unknown/`assisted`) and auto-`once` silently on Bypass/Autopilot; no session trust, no engine `always`, nothing persisted. Timeout, dismiss, disconnect, or cancellation resolve to deny; the bridge never sends `always`. Managed mode injects ask-all permissions so Default→ask is enforceable; external servers must set ask-all themselves.
 
 ## 3. Security Skill Routing
 

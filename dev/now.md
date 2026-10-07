@@ -30,7 +30,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 ## Last Completed
 
 - T-0023 COMPLETE (20261007): multimodal image ferry (attached via prompt `files`, `view_image` via executor `data:` file parts; `file://` rejected by provider — corrected; 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Committed 038510b.
-- T-0022 COMPLETE (20261007): per-chat workspace directory (message > editor > first-folder, create-time pinning, B-0002 colon fix); `tsc` 0, `npm test` 128/128; EDH green (A → `[Downloads\test]` `ses_eeae4a…`, B → `[Downloads\test3]` `ses_eeadf6…`, reuse pins same session). Committed 038510b (bookkeeping).
+- T-0022 COMPLETE (20261007): per-chat workspace directory (message > editor > first-folder, create-time pinning, B-0002 colon fix); `tsc` 0, `npm test` 128/128; EDH green (A → `[Downloads\test]` `ses_eeae4a…`, B → `[Downloads\test3]` `ses_eeadf6…`, reuse pins same session). Committed 6208b4f (bookkeeping).
 - T-0021 COMPLETE (20261007): single entry + Thinking Effort control, variant
   plumb create/switch + modelKey pin; `tsc` 0, `npm test` 117/117; live probe
   green; EDH steps 1–7 green (same-session High→Low switch, untouched control
@@ -41,7 +41,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
   removed, managed ask-all enforced; OS ping parked PL-0006; `tsc` 0,
   `npm test` 99/99, EDH test-3/4/5 green). Committed b65f55b.
 - T-0019 COMPLETE (20261005): dropped-mapping record (`oct.droppedConversations.v1` on all 4 paths, graveyard feeds, retired-chat notice; `tsc` 0, `npm test` 84/84, EDH replay green). Committed ea528da.
-- T-0018 COMPLETE (20261005): TS lint gate (`noUnusedLocals`/`noUnusedParameters`, `npm run lint`, negative check; `tsc` 0, `npm test` 73/73). UNCOMMITTED.
+- T-0018 COMPLETE (20261005): TS lint gate (`noUnusedLocals`/`noUnusedParameters`, `npm run lint`, negative check; `tsc` 0, `npm test` 73/73). Committed 04a6972.
 - T-0017 COMPLETE (20261005): cap tuning (default 200, evict-dead-first without burial, `Entry.directory` + grouped status with `time.created` ages; `tsc` 0, `npm test` 73/73). Committed be123c1.
 - T-0016 COMPLETE (20261005): orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` (resolve → dry-run → Delete/Cancel, default off; `tsc` 0, `npm test` 58/58; command EDH green 2026-10-05). Committed a213028.
 - T-0015 COMPLETE (20261005): `TOOL_NOTICE` removed, engine-tools fallback when bridge unavailable (Copilot primary unchanged, default-deny holds; `tsc` 0, `npm test` 48/48; EDH Parts A/B/C + image redo green). Committed d1a4aa5.
@@ -69,15 +69,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_M3_OPENED
+STATE_M4_COMPLETE
 
 ## Next Action
 
-## Next Action
-
-Commit T-0023 checkpoint now (ferry + caps + tests + docs)? Policy is ASK — saying yes commits only the current worktree changes. Note: T-0022 + T-0021 bookkeeping edits ride along; confirm scope separately before committing.
-(policy: ASK) alongside T-0020 bookkeeping edits — confirm commit scope
-separately before committing.
+Commit hash-fix bookkeeping now (now.md + T-0023 commit hashes `038510b` → `6208b4f`)? Policy is ASK — saying yes commits only the current worktree changes.
 
 ## Current Blocker
 
@@ -85,20 +81,12 @@ None.
 
 ## Relevant Files
 
-- `dev/tasks/T-0001-extension-shell-gate.md`
-- `dev/tasks/T-0002-managed-server.md`
-- `dev/tasks/T-0003-chat-provider-sessions.md`
-- `dev/tasks/T-0004-tool-bridge-spike.md`
-- `dev/tasks/T-0005-plugin-echo-tool-spike.md`
-- `dev/tasks/T-0006-copilot-tool-bridge.md`
-- `dev/tasks/T-0007-session-title-sync.md`
-- `src/server/client.ts` (T-0007: `listSessions` + `updateSession`)
-- `src/provider/sessions.ts` (T-0007: title derivation + prune helper)
-- `src/extension.ts` (T-0007: status list)
-- `src/provider/octProvider.ts` (T-0007: title seed + map accessors)
-- `plugin/oct-tools/index.js` (bundled bridge plugin)
-- `src/provider/tools.ts` (shuttle + callback server)
-- `src/provider/permissions.ts` (approval translator)
+- `dev/tasks/T-0011-max-sessions-setting.md` through `dev/tasks/T-0023-multimodal-ferry.md` (M3: T-0011..T-0017; M4: T-0018..T-0023)
+- `src/provider/sessions.ts` (map cap 200, evict-dead-first, directory groups, graveyard, dropped record)
+- `src/provider/permissions.ts` (Copilot-gated Allow/Cancel, read-silent, no trust)
+- `src/provider/images.ts` + `src/provider/tools.ts` (image ferry caps + 32 MB body)
+- `src/provider/models.ts` (Thinking Effort variants) + `src/provider/octProvider.ts` (per-chat directory, turn wiring)
+- `plugin/oct-tools/index.js` (bundled bridge plugin, file-part return)
 - `docs/adr/0001-oct-bridge-architecture.md`
 - `dev/project.md`
 - `dev/constraints.md`
@@ -110,9 +98,9 @@ None.
 
 ## Verification
 
-Status: VERIFIED (T-0006..T-0009 complete 2026-10-02, M2 done; committed 13638c3)
+Status: VERIFIED (M4 COMPLETE 2026-10-07: T-0018..T-0023; M3 COMPLETE 2026-10-05: T-0011..T-0017 at `be123c1`; per-task `tsc` + `npm test` + EDH evidence in `dev/tasks/`)
 
-Evidence:
+Evidence (M2 baseline; M3/M4 detail lives in per-task Evidence):
 
 - `npx tsc --noEmit -p ./` + `npm run compile` exit 0 (2026-10-02, T-0007).
 - T-0007 live engine checks PASSED 2026-10-02 (opencode v2.0.21: create with title → get/list return title → PATCH rename → 404 path).
@@ -134,15 +122,15 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`038510b feat: ferry image bytes from bridged tool results` (T-0023: ferry + caps + tests + docs; T-0021/T-0022 bookkeeping). Worktree clean.
+`6208b4f feat: ferry image bytes from bridged tool results` (T-0023: ferry + caps + tests + docs; T-0021/T-0022 bookkeeping; parking-lot PL-0001/PL-0003 resolved). Worktree has uncommitted hash-fix bookkeeping (now.md + T-0023: `038510b` → `6208b4f`).
 
 ## README Status
 
-CURRENT — image ferry (T-0023, 2026-10-07: tool results via executor `data:` parts + attached via prompt `files`, 15 MB cap) + multi-root per-chat directory (T-0022, 2026-10-07: attachment > editor > first-folder, reuse pins) + thinking-effort configure control (T-0021, 2026-10-07: single entry + status `pickerId#variant`) + dropped-mapping record (T-0019, 2026-10-05: restore-cap drops tracked + retired-chat notice) + cap tuning (T-0017: `oct.maxSessions` default 200 + grouped status) + orphan cleanup command (T-0016) + tool priority (T-0015) + `oct.maxSessions` setting (T-0011) + license section (T-0010) + session titles (incl. unique fallback) + status list (T-0007).
+CURRENT — M4 COMPLETE (2026-10-07) + M3 (`be123c1`, 2026-10-05): image ferry (T-0023: executor `data:` parts + prompt `files`, 15 MB cap) + per-chat directory (T-0022) + Thinking Effort (T-0021) + Copilot-gated approval Allow/Cancel, read-silent, no trust, managed ask-all (T-0020) + dropped-mapping record + retired-chat notice (T-0019) + TS lint gate (T-0018) + cap default 200 + grouped status (T-0017) + orphan cleanup command (T-0016) + tool priority (T-0015) + `OCT / <name>` branding + vision flag (T-0014) + deleted-session notice (T-0013) + prune-on-start (T-0012) + `oct.maxSessions` setting (T-0011).
 
 ## Important Context
 
-Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
+Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). M3 COMPLETE 2026-10-05 (`be123c1`): scale hardening T-0011..T-0017. M4 COMPLETE 2026-10-07: T-0018..T-0023 (lint, dropped-mapping, Copilot-gated approval, Thinking Effort, per-chat directory, image ferry). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
 
 ## Do Not Change
 
@@ -150,8 +138,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0018 committed 4288c22 (2026-10-05). Next: T-0019. No blocker.
+T-0023 COMPLETE 2026-10-07 (`6208b4f`). No open tasks. No blocker.
 
 ## Resume Instruction
 
-Read this file first. Offer the T-0017 checkpoint commit; then scope next work with the user.
+Read this file first. Offer the hash-fix bookkeeping commit (policy ASK); then scope post-M4 work with the user.

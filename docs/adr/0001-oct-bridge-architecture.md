@@ -1,6 +1,6 @@
 # ADR-0001 — OCT Bridge via Copilot `LanguageModelChatProvider` + Managed Opencode v2 Server
 
-- Status: ACCEPTED (partially superseded by M2 — see Addendum 2026-10-02)
+- Status: ACCEPTED (partially superseded by M2–M4 — see Addenda 2026-10-02 / 2026-10-07)
 - Date: 2026-09-29
 
 ## Context
@@ -56,3 +56,21 @@ Decision 3 (background reaper) and Decision 4 / Consequences (negative / follow-
 - Copilot tools primary, engine tools fallback when the bridge is unavailable (external mode without the plugin, T-0015); non-text content stays placeholder-only (image-producing tools return a placeholder — multimodal deferred).
 - No background reaper: sessions are never deleted on the hot path; dead entries are pruned via `OCT: Show Status` (`T-0007`).
 - The Revisit Condition's "tool passthrough is scoped" trigger is met and closed by T-0006.
+
+## M3 Addendum (2026-10-05) — Scale Hardening Shipped (T-0011..T-0017, `be123c1`)
+
+Map management without changing the 1:1 reuse decision:
+
+- Configurable `oct.maxSessions` cap (T-0011), raised to default 200 with evict-dead-first + per-entry workspace directory and grouped status with ages (T-0017).
+- Dead sessions pruned on start and via status through shared per-id verify-and-prune (T-0012); mid-turn 404 tells the user to start a new chat (T-0013).
+- `OCT / <name>` branding + vision flag (T-0014); Copilot-primary / engine-fallback tool priority (T-0015).
+- Opt-in orphan graveyard (cap 200, persisted) + `OCT: Delete Orphaned Engine Sessions` dry-run → confirm → delete (T-0016); dropped mappings never silently fork (retired-chat notice lands in M4 via T-0019).
+
+## M4 Addendum (2026-10-07) — Approval Gating, Picker Variants, Per-Chat Directory, Image Ferry (T-0018..T-0023)
+
+- TS lint gate (`noUnusedLocals`/`noUnusedParameters`, `npm run lint`, T-0018).
+- Dropped-mapping completeness: restore-cap overflow buries + records into `oct.droppedConversations.v1`; dropped chats retire with a start-a-new-chat notice instead of silent fork (T-0019; closes PL-0002/PL-0004).
+- Copilot-gated approval (T-0020): engine-native actions follow ONLY global `chat.permissions.default` read fresh every time — `read` always silent, non-read Allow/Cancel on Default (also missing/unknown/`assisted`), silent on Bypass/Autopilot; session trust removed; managed mode injects ask-all permissions (overrides global + workspace files without touching them); external servers must set ask-all themselves; picker per-session level is invisible to providers (PL-0005) and OS toast has no extension-side path (PL-0006, code removed).
+- Thinking Effort via configure-model: single picker entry per model, engine `variants[]` only, travels as variant on create/switch (T-0021).
+- Per-chat workspace directory for multi-root (attachment > editor > first-folder, create-time pinning; T-0022; closes PL-0003).
+- Image ferry (T-0023; closes PL-0001): tool-result bytes ride the executor return as engine-native `data:` file parts, attached images ride prompt `files` (15 MB/image, 50 images / 40 MB per turn, loopback body 32 MB; oversize/non-image degrades to placeholder). The M2 "placeholder-only" consequence is superseded for images; video/pdf remain deferred.

@@ -1,75 +1,62 @@
 # Bug-Fix Records
 
-`dev/bug-fixes/` contains durable records for bugs that were investigated, fixed, and verified.
+`dev/bug-fixes/` contains durable records for **standalone, resolved bugs** that are worth preserving after verification.
 
-## Purpose
+## Active Bug Work
 
-Bug-fix records answer:
+Bug investigation and implementation belong in `dev/tasks/` while the work is active.
 
-- What was broken?
-- How could it be reproduced?
-- What was expected?
-- What was the evidence-based root cause?
-- What changed?
-- How was the fix verified?
-- What regression or security risk remains?
-- What lesson or prevention rule should survive the incident?
+If a bug is discovered while working on the active task and remains within that task's scope, keep it in the active task. Do **not** create a separate bug record just because the discovery is a bug.
 
-## Bug Records vs Tasks
+Create a standalone bug task/record only when the issue is outside the active task or the user explicitly separates it.
 
-Use `dev/tasks/` for active investigation and implementation work.
+## When a Bug Gets Its Own Record
 
-Use `dev/bug-fixes/` for the historical record after the bug has been resolved and appropriately verified.
-
-**Do not** create a record merely because a user reports an issue. The investigation can remain in the task until the outcome is known.
-
-## When to Create a Record
-
-Create a bug-fix record when the bug:
+Prefer a standalone record when the bug:
 
 - caused meaningful user-visible behavior;
 - required non-trivial investigation or code changes;
 - exposed a security or reliability issue;
-- is likely to be useful for future troubleshooting or prevention.
+- contains a reusable prevention lesson.
 
 Tiny typo fixes or obvious one-line mistakes normally do not need a record.
 
 ## Naming
 
-Use:
+Use a stable sequential ID:
 
 ```text
-YYYYMMDD-<bug-slug>.md
+B-0001-<bug-slug>.md
+B-0002-<bug-slug>.md
 ```
 
-Example:
-
-```text
-20260930-auth-token-refresh-loop.md
-```
-
-Optional raw evidence can use a sibling directory:
-
-```text
-20260930-auth-token-refresh-loop/
-```
+Keep the date in frontmatter or inside the record when useful; do not use the date as the primary identifier.
 
 ## Lifecycle
 
 ```text
 report
-  ↓
-investigate
-  ↓
-root cause
-  ↓
-fix
-  ↓
-verify
-  ↓
-bug-fix record
-  ↓
-checkpoint commit
+  -> bounded task / investigation
+  -> root cause
+  -> fix
+  -> verify
+  -> bug-fix record when warranted
+  -> move record to done/ when closed
 ```
 
-For security-sensitive bugs, also evaluate `dev/security.md` and preserve the relevant security lesson in the record or an appropriate project security/ADR artifact.
+`done/` is the historical archive. Keep active folders small enough to scan quickly.
+
+## Record Contents
+
+Preserve only durable information:
+
+- observed behavior;
+- expected behavior;
+- reproduction;
+- impact;
+- evidence-based root cause;
+- fix summary;
+- verification;
+- security/regression risk;
+- prevention lesson;
+- related task, ADR, and commit.

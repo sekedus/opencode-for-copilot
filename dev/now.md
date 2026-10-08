@@ -21,7 +21,7 @@ None — T-0023 complete 2026-10-07, no open tasks. Awaiting next scope.
 
 ## Current Step
 
-T-0023 COMPLETE 2026-10-07 (image ferry data:-only + 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Next: commit checkpoint (policy ASK).
+T-0023 COMPLETE 2026-10-07 (image ferry data:-only + 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Docs sweep + AAW 0.7.1 committed (see Last Commit). No open tasks.
 
 ## Objective
 
@@ -29,7 +29,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last Completed
 
-- T-0023 COMPLETE (20261007): multimodal image ferry (attached via prompt `files`, `view_image` via executor `data:` file parts; `file://` rejected by provider — corrected; 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Committed 038510b.
+- T-0023 COMPLETE (20261007): multimodal image ferry (attached via prompt `files`, `view_image` via executor `data:` file parts; `file://` rejected by provider — corrected; 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Committed 6208b4f.
 - T-0022 COMPLETE (20261007): per-chat workspace directory (message > editor > first-folder, create-time pinning, B-0002 colon fix); `tsc` 0, `npm test` 128/128; EDH green (A → `[Downloads\test]` `ses_eeae4a…`, B → `[Downloads\test3]` `ses_eeadf6…`, reuse pins same session). Committed 6208b4f (bookkeeping).
 - T-0021 COMPLETE (20261007): single entry + Thinking Effort control, variant
   plumb create/switch + modelKey pin; `tsc` 0, `npm test` 117/117; live probe
@@ -48,7 +48,7 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 - T-0014 COMPLETE (20261004): `OCT / <name>` branding + `imageInput` from vision modality (`tsc` 0, `npm test` 48/48). Committed 403a186.
 - T-0013 COMPLETE (20261004): typed 404 preserved through admission + gone-branch (`forget` + one-sentence throw; `tsc` 0, `npm test` 42/42). Committed f0005cf.
 - T-0012 COMPLETE (20261004): per-id verify-and-prune shared by startup + status (`isSessionGoneError`, list demoted to titles; `tsc` 0, `npm test` 37/37). Committed 8c0f8a9.
-- T-0011 COMPLETE (20261003): `oct.maxSessions` setting (default 50, clamped) + map cap wiring + 2 unit tests (`tsc` 0, `npm test` 34/34). Committed 3d7ea3b.
+- T-0011 COMPLETE (20261003): `oct.maxSessions` setting (default 200 since T-0017, clamped) + map cap wiring + 2 unit tests (`tsc` 0, `npm test` 34/34). Committed 3d7ea3b.
 - T-0010 COMPLETE (20261003): logo/icon/LICENSE (`assets/` art + manifest `icon` + MIT `LICENSE`; `tsc` 0, package 21 files / 59.01 KB). Committed ad25133.
 - T-0009 COMPLETE (20261002): local VSIX (`@vscode/vsce@4.0.0`, 18 files, 48.51 KB, contents-gated) + user-run install proof. M2 COMPLETE.
 - T-0008 COMPLETE (20261002): zero-dep `node:test` harness (`vscode` mock + NODE_PATH shim + runner) with 32 session/message units incl. EDH regressions; main build untouched.
@@ -73,7 +73,7 @@ STATE_M4_COMPLETE
 
 ## Next Action
 
-Commit hash-fix bookkeeping now (now.md + T-0023 commit hashes `038510b` → `6208b4f`)? Policy is ASK — saying yes commits only the current worktree changes.
+None — HEAD is `1b37d02` (AAW 0.7.1). Scope post-M4 work with the user.
 
 ## Current Blocker
 
@@ -88,9 +88,11 @@ None.
 - `src/provider/models.ts` (Thinking Effort variants) + `src/provider/octProvider.ts` (per-chat directory, turn wiring)
 - `plugin/oct-tools/index.js` (bundled bridge plugin, file-part return)
 - `docs/adr/0001-oct-bridge-architecture.md`
+- `ARCHITECTURE-MAP.md` (codebase navigation map, AAW 0.7.1)
 - `dev/project.md`
 - `dev/constraints.md`
 - `dev/security.md`
+- `dev/verification.md` (verification contract, AAW 0.7.1)
 
 ## Constraints
 
@@ -122,7 +124,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`6208b4f feat: ferry image bytes from bridged tool results` (T-0023: ferry + caps + tests + docs; T-0021/T-0022 bookkeeping; parking-lot PL-0001/PL-0003 resolved). Worktree has uncommitted hash-fix bookkeeping (now.md + T-0023: `038510b` → `6208b4f`).
+`1b37d02 feat: update AAW to 0.7.1` (workflow control-plane: manifest + migration doc; prior `5e33341` added `ARCHITECTURE-MAP.md` + `dev/verification.md`; prior `6698ff3` docs sweep M3/M4). No product-code changes since `6208b4f`. Worktree has this uncommitted now.md checkpoint only.
 
 ## README Status
 
@@ -130,7 +132,7 @@ CURRENT — M4 COMPLETE (2026-10-07) + M3 (`be123c1`, 2026-10-05): image ferry (
 
 ## Important Context
 
-Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). M3 COMPLETE 2026-10-05 (`be123c1`): scale hardening T-0011..T-0017. M4 COMPLETE 2026-10-07: T-0018..T-0023 (lint, dropped-mapping, Copilot-gated approval, Thinking Effort, per-chat directory, image ferry). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
+Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). M3 COMPLETE 2026-10-05 (`be123c1`): scale hardening T-0011..T-0017. M4 COMPLETE 2026-10-07: T-0018..T-0023 (lint, dropped-mapping, Copilot-gated approval, Thinking Effort, per-chat directory, image ferry). Workflow AAW 0.7.1 installed 2026-10-08 (manifest `.aaw/manifest.yml`, no migration lock; `ARCHITECTURE-MAP.md` + `dev/verification.md` added by `5e33341`). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
 
 ## Do Not Change
 
@@ -138,8 +140,8 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-T-0023 COMPLETE 2026-10-07 (`6208b4f`). No open tasks. No blocker.
+Docs sweep committed `6698ff3`, then AAW workflow commits `5e33341` (map + verification contract) and `1b37d02` (AAW 0.7.1). No open tasks. No blocker.
 
 ## Resume Instruction
 
-Read this file first. Offer the hash-fix bookkeeping commit (policy ASK); then scope post-M4 work with the user.
+Read this file first. Offer the now.md checkpoint commit (policy ASK); then scope post-M4 work with the user.

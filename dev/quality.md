@@ -80,6 +80,26 @@ Use `dev/security.md` to map the project's actual attack surface to targeted sec
 
 **Do not** treat a generic security checklist or a single AI review as a security guarantee.
 
+## Interaction / Checkpoint Intensity
+
+Do not use task size alone to decide how much user interaction the workflow needs. Consider scope, risk, ambiguity, user-visible impact, and reversibility.
+
+```text
+LIGHT
+  known, local, reversible work
+  -> understand -> implement -> targeted verification
+
+NORMAL
+  bounded feature/fix with meaningful behavior
+  -> understand -> propose/confirm when needed -> implement -> verify
+
+DEEP
+  ambiguous, architectural, security-sensitive, or high-impact work
+  -> discuss/grill -> design/decision checkpoint -> bounded implementation -> verify -> HDT when appropriate
+```
+
+Design agreement is not automatically implementation authorization when the change contains an important user-controlled or irreversible decision.
+
 ## 2. Verification Contract
 
 Use `dev/verification.md` as the project's concrete verification contract. Quality-gate selection answers **what** needs confidence; `dev/verification.md` answers **which commands/evidence** prove it.

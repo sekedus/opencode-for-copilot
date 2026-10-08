@@ -89,13 +89,15 @@ At minimum verify:
 8. Verification evidence matches task status.
 9. Commit claims match Git.
 10. README reflects material project-understanding changes.
-11. If `.aaw/migration.yml` is active, no product task is being executed or created.
-12. After migration completion, `.aaw/manifest.yml` reports the verified target version and `.aaw/migration.yml` is absent.
+11. A completed task is not left in the active task folder; a standalone completed bug record is not left in the active bug folder.
+12. A pending decision is explicit; it is never inferred from session continuity or silence.
+13. If a project maintains `CHANGELOG.md`, release-facing changes are recorded there when applicable.
+14. If `.aaw/migration.yml` is active, no product task is being executed or created.
+15. After migration completion, `.aaw/manifest.yml` reports the verified target version and `.aaw/migration.yml` is absent.
 
 ## Recovery
 
 When state is inconsistent, stop implementation and reconcile the artifacts before continuing.
-
 
 ## AAW Migration State
 
@@ -109,3 +111,14 @@ product now.md      = preserved
 ```
 
 The migration lock is the durable signal that a new session must resume migration before normal work. A migration may update workflow-owned files and control-plane metadata, but it must preserve product state and unrelated user changes.
+
+## Affected-artifact rule
+
+After a meaningful change, identify which durable artifacts actually changed in meaning. Update only those artifacts. For example:
+
+- small local fix -> active task + `dev/now.md` + affected verification evidence;
+- architecture change -> task + `ARCHITECTURE-MAP.md` + ADR/verification when affected;
+- user-facing feature -> task + README/CHANGELOG only when the project actually maintains them and the change is meaningful;
+- workflow policy change -> the relevant AAW workflow documentation.
+
+Unchanged artifacts should be left alone. Do not perform blanket documentation synchronization merely because the files exist.

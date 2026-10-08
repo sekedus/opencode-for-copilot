@@ -1,6 +1,6 @@
 # Adaptive Agent Workflow
 
-**Workflow version: 0.7.1**
+**Workflow version: 0.7.2**
 
 ## 0. AAW Maintenance and Migration
 
@@ -9,10 +9,10 @@ AAW installation, upgrade, downgrade, repair, and migration are control-plane op
 Examples:
 
 ```text
-update adaptive-agent-workflow to 0.7.1
-update AAW to v7
+update adaptive-agent-workflow to 0.7.2
+update AAW to v0.7.2
 upgrade aaw
-migrate this project to AAW 0.7.1
+migrate this project to AAW 0.7.2
 ```
 
 Legacy labels normalize as `v6 -> 0.6.0` and `v7 -> 0.7.0`. The installed version is read from `.aaw/manifest.yml`, where `AAW_VERSION` is authoritative. Older projects without the manifest must be identified from concrete repository evidence; uncertain versions are a reason to stop rather than guess.
@@ -222,7 +222,7 @@ If a required dependency is unavailable, stop the specialized workflow rather th
 
 ## 7. Codebase Memory and Engineering Discipline
 
-`ARCHITECTURE-MAP.md` is the living codebase map. It is intentionally compact and navigational rather than a duplicate of every architecture detail.
+`ARCHITECTURE-MAP.md` is the living codebase map. It is intentionally compact and navigational rather than a second architecture document or file-by-file index.
 
 Use it to answer quickly:
 
@@ -364,7 +364,31 @@ The security library is intentionally large. Select the smallest set of skills t
 
 ---
 
-## 11. Recovery-First Execution
+## 11. Human Confirmation, HDT, and WAIT-WHAT
+
+### Adaptive interaction intensity
+
+AAW does not force every change through the deepest workflow:
+
+```text
+LIGHT  -> understand -> implement -> targeted verification
+NORMAL -> understand -> propose/confirm when needed -> implement -> verify
+DEEP   -> discuss/grill -> decision checkpoint -> bounded implementation -> verify -> HDT when appropriate
+```
+
+### Pending decisions
+
+If implementation depends on a meaningful user decision, record a `Pending Decision` in the active task. A new session, compaction, silence, or interruption is never an approval.
+
+### Human Development Test
+
+Offer HDT when automated checks cannot fully prove real human/runtime behavior. Give short beginner-friendly steps and an expected result. Evaluate the user's report as evidence. On FAIL, investigate/fix and repeat the relevant verification. See `dev/hdt.md`.
+
+### WAIT-WHAT behavior
+
+After meaningful implementation, briefly explain: what changed, why, how to verify it, what to expect, and what to report if it fails. The `/wait-what` skill is optional; this minimum communication contract is core AAW behavior.
+
+## 12. Recovery-First Execution
 
 A session can fail at any time:
 
@@ -406,7 +430,7 @@ Only after reconciliation should implementation continue.
 
 ---
 
-## 12. Context Safety
+## 13. Context Safety
 
 The goal is not to consume the maximum advertised context window.
 
@@ -432,7 +456,7 @@ not the entire previous conversation.
 
 ---
 
-## 13. Project Switching
+## 14. Project Switching
 
 A project switch is not a loss of state.
 
@@ -452,7 +476,7 @@ This allows the user to explore project B without losing the exact resume point 
 
 ---
 
-## 14. Verification Vocabulary
+## 15. Verification Vocabulary
 
 Use explicit evidence labels:
 
@@ -474,25 +498,27 @@ Avoid claims such as "secure" or "fully compatible" unless the evidence supports
 
 ---
 
-## 15. Feature and Bug-Fix Records
+## 16. Task, Milestone, and Bug Records
 
-Active work belongs in `dev/tasks/`. Completed work may produce a historical record when it is useful to preserve project understanding.
+Active work belongs in `dev/tasks/`. Use `dev/milestones/` when a bounded outcome is too broad for one task. Use `dev/bug-fixes/` only for standalone meaningful bugs after verification.
 
-### Features
+### Tasks
 
-Create `dev/features/YYYYMMDD-<feature-slug>.md` when the change introduces meaningful user-visible capability or an important workflow/integration. Use `.feature-template.md`.
+A task is a bounded work unit, not one user message. A new small request may join an active task when scope, domain, acceptance criteria, and verification boundary genuinely align. Otherwise, create a separate task or park it.
 
-### Bug Fixes
+Small task files should stay small. Do not fill a tiny task with large planning/history sections merely because a template contains them.
 
-Create `dev/bug-fixes/YYYYMMDD-<bug-slug>.md` when a bug has been investigated, fixed, and verified and the incident is worth preserving for future troubleshooting, reliability, or security work. Use `.bug-fix-template.md`.
+### Milestones
 
-Do not create records for every trivial change. The record should summarize the durable lesson and link to the task, ADRs, tests, and commit rather than duplicating implementation details.
+A milestone is a compact grouping and navigation layer for related tasks. It is not a second source of truth for execution details. When creating a milestone, inspect `dev/parking-lot.md` for related ideas and ask the user before promoting any candidate.
 
-Feature/bug records are part of the state transaction that closes the work, but they do not replace the task or `now.md`.
+### Bug fixes
 
----
+A bug discovered inside the active task remains inside that task when it is within scope. For standalone meaningful bugs, use stable IDs such as `B-0001-<slug>.md`. Move completed task files to `dev/tasks/done/` and completed bug-fix records to `dev/bug-fixes/done/`.
 
-## 16. Final Checkpoint
+Do not use active folders as archives. Git history preserves historical movement.
+
+## 17. Final Checkpoint
 
 Before ending a meaningful session, `dev/now.md` should answer:
 
@@ -542,3 +568,25 @@ MIGRATION
 ```
 
 This lets a user request an AAW upgrade using natural language while the agent determines the installed release, preserves project state, migrates workflow-owned files, verifies the target, updates control instructions last, and stops without executing an application task.
+
+
+## 0.7.2 Workflow Ergonomics
+
+The 0.7.2 layer keeps the 0.7.1 migration/control plane and adds a lighter operating model for real project use:
+
+```text
+compact now snapshot
+active-only parking lot
+adaptive task records
+milestones for broad bounded work
+standalone B-* bug records
+done/ lifecycle folders
+pending decisions
+adaptive interaction intensity
+HDT when human/runtime evidence matters
+WAIT-WHAT as core behavior, optional skill
+affected-artifact state synchronization
+compact architecture / verification contracts
+```
+
+The goal is less bookkeeping, not more documentation.

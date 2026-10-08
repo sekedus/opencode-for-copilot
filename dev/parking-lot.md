@@ -1,116 +1,43 @@
 # Parking Lot
 
-Ideas, questions, and distractions intentionally deferred from the current task.
+The parking lot is an **active deferred queue**, not an archive.
 
+Add only ideas that are clearly related to the project but intentionally outside the current scope.
+
+Do not add unrelated brainstorming, speculative distractions, or implementation notes that belong in the current task.
+
+```text
+discover
+  -> park
+  -> later review
+  -> promote to task/milestone OR reject/drop
+  -> remove the parking-lot entry
+```
+
+When an entry is promoted, the new task or milestone may reference the old `PL-xxxx` ID, but the resolved parking-lot item should be deleted. Git history preserves the historical record.
+
+## Entry Template
+
+```markdown
 ## PL-0001
 
-Date: 2026-10-05
+Date: YYYY-MM-DD
 
 Idea:
-
-Ferry image bytes from bridged Copilot tool results to the engine instead
-of placeholder text (multimodal bridge).
+[Project-related idea]
 
 Triggered By:
-
-EDH image redo 2026-10-05: `view_image` results reach the engine only as
-`[Attachment omitted: image/png (N bytes) …]` (`src/provider/tools.ts:116-118`;
-all `Tool result to engine: view_image (33x chars)` lines are that
-placeholder), and prompt transport is text-only
-(`src/server/client.ts:285-295`). The vision model confirmed it live
-("Image viewer didn't return viewable data") and self-healed via
-engine-native `read` (accurate descriptions of all 6 images) and PIL+OCR.
+[What caused the idea to appear during current work]
 
 Action:
+DEFER
 
-RESOLVED by T-0023 (2026-10-07, EDH A+B green + regression pass): attached
-images ride prompt `files`, `view_image` results ride the executor return as
-engine-native `data:` file parts (15 MB/image, 50/40 MB per-turn caps,
-oversize degrades to placeholder). `file://` in tool content is rejected by
-the provider — `data:`-only.
+Reason:
+[Why it is outside the current scope]
 
 Revisit When:
-
-Image caps need retuning (provider limits move) or video/pdf join the ferry.
-
-## PL-0002
-
-Date: 2026-10-05
-
-Idea:
-
-Bury session ids dropped by the restore-cap path (`OctSessionMap.restore`
-breaks at `maxEntries` without `bury`), so cap-churned mappings at reload
-join the orphan graveyard like create-eviction and `forget` do.
-
-Triggered By:
-
-T-0017 EDH Step 4/6: restore-cap at 3 then 2 dropped `ses_ef4577…`
-(charlie) and `ses_ef456a…` (test2) without graveyard entries — the later
-orphan cleanup could not list them.
-
-Action:
-
-RESOLVED by T-0019 (2026-10-05, EDH green): restore-cap overflow now buries +
-records (`restore` loads graveyard/dropped first, then buries/records overflow).
-
-Revisit When:
-
-Orphan-cleanup completeness is scoped.
-
-## PL-0003
-
-Date: 2026-10-05
-
-Idea:
-
-Per-folder workspace directory for multi-root workspaces (`workspaceCwd`
-uses `workspaceFolders[0]`, so chats in a second added folder still map
-under the first folder's directory and status groups never split).
-
-Triggered By:
-
-T-0017 EDH Step 3: `Add Folder to Workspace` kept all chats in one group;
-only `Open Folder` split groups.
-
-Action:
-
-RESOLVED by T-0022 (2026-10-07, EDH green): per-chat resolution
-(message > editor > first-folder, create-time pinning).
-
-Revisit When:
-
-Multi-root behavior needs revisiting.
-
-## PL-0004
-
-Date: 2026-10-05
-
-Idea:
-
-Announce the fresh start when a turn creates a new engine session for a
-previously-known Copilot conversation whose mapping was dropped (cap
-eviction, restore-cap, forget) — one in-chat line ("earlier session link
-dropped, fresh engine session, earlier context unavailable") — instead of
-silently recreating an amnesiac session. Not the T-0013 notice: the old
-session is usually still alive, only the link is gone, so the chat keeps
-working. Needs a persisted bounded dropped-keys set (separate from the
-`dead` set — dead means never recreate), cleared on re-map.
-
-Triggered By:
-
-T-0017 EDH: charlie's capped-out chat silently forked to `ses_ef4422…`
-with no history and no message; user expected at least a notice.
-
-Action:
-
-RESOLVED by T-0019 (2026-10-05, EDH green): dropped chats are retired T-0013-style
-(block with `DROPPED_SESSION_MESSAGE`, creates nothing, retry repeats) via the
-persisted `oct.droppedConversations.v1` record (separate from `dead`).
-
-Revisit When:
-
-Dropped-link UX is scoped.
+[Condition for reconsideration]
+```
 
 ## PL-0005
 

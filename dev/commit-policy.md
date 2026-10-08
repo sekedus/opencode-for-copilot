@@ -50,7 +50,8 @@ An `auto` policy does not bypass verification or state integrity.
 Before an automatic commit, the agent must:
 
 1. complete the relevant verification;
-2. synchronize affected project state;
+2. run/offer HDT when the change requires human/runtime evidence;
+3. synchronize affected project state;
 3. review the root README when applicable;
 4. pass the state-integrity check;
 5. inspect Git status and diff;

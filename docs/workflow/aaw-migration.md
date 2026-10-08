@@ -16,10 +16,10 @@ AAW control    = migratable
 The user should be able to use natural language:
 
 ```text
-update adaptive-agent-workflow to 0.7.1
-update AAW to v7
+update adaptive-agent-workflow to 0.7.2
+update AAW to v0.7.2
 upgrade aaw
-migrate this project to AAW 0.7.1
+migrate this project to AAW 0.7.2
 ```
 
 Legacy release labels normalize as `v6 -> 0.6.0` and `v7 -> 0.7.0`.
@@ -37,7 +37,7 @@ Example:
 ```yaml
 AAW_ID: adaptive-agent-workflow
 AAW_SOURCE: https://github.com/sekedus/adaptive-agent-workflow
-AAW_VERSION: 0.7.1
+AAW_VERSION: 0.7.2
 AAW_SCHEMA: 1
 ```
 
@@ -70,7 +70,7 @@ Minimum contract:
 mode: MIGRATION
 status: ACTIVE
 from: 0.6.0
-to: 0.7.1
+to: 0.7.2
 ```
 
 Optional fields such as a timestamp or migration identifier may be added.
@@ -101,7 +101,10 @@ dev/constraints.md
 dev/roadmap.md
 dev/now.md
 dev/tasks/
-dev/features/
+dev/tasks/done/
+dev/bug-fixes/
+dev/bug-fixes/done/
+dev/milestones/
 dev/bug-fixes/
 dev/security.md
 dev/quality.md
@@ -172,12 +175,12 @@ Update `AGENTS.md` and `.github/copilot-instructions.md` only after the target w
 
 ### 10. Write the target manifest
 
-For 0.7.1:
+For 0.7.2:
 
 ```yaml
 AAW_ID: adaptive-agent-workflow
 AAW_SOURCE: https://github.com/sekedus/adaptive-agent-workflow
-AAW_VERSION: 0.7.1
+AAW_VERSION: 0.7.2
 AAW_SCHEMA: 1
 ```
 
@@ -210,3 +213,17 @@ If migration cannot be completed safely, leave the lock active, preserve the rep
 ## Future releases
 
 Every workflow release that changes semantics should document its `AAW_VERSION`, any `AAW_SCHEMA` change, migration steps, protected/migratable files, verification requirements, and supported source versions. Never invent an undocumented migration path.
+
+
+## 0.7.2 migration notes
+
+When upgrading an existing AAW 0.7.x project:
+
+- preserve `dev/now.md` as a snapshot and remove stale historical appendices instead of copying the template snapshot over project state;
+- remove promoted, rejected, or resolved entries from `dev/parking-lot.md`;
+- stop creating new `dev/features/` records; if an existing project already has meaningful legacy feature records, preserve them as historical data rather than deleting them automatically;
+- keep active work in `dev/tasks/`; move completed task files to `dev/tasks/done/`;
+- use stable `B-*` IDs for standalone bug-fix records;
+- create `dev/milestones/` only for broad bounded work that genuinely needs grouping;
+- reconcile `dev/verification.md` to the compact verification contract;
+- preserve existing project-specific content rather than replacing it with template placeholders.

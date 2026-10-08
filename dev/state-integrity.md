@@ -2,7 +2,18 @@
 
 This document defines how the workflow keeps project state synchronized across durable artifacts.
 
-## Durable Layers
+## Control-Plane Layers
+
+| Artifact | Question answered |
+|---|---|
+| `.aaw/manifest.yml` | Which AAW release is installed? |
+| `.aaw/migration.yml` | Is an AAW migration currently active? |
+| `AGENTS.md` | What workflow rules does the agent follow? |
+| `.github/copilot-instructions.md` | What thin Copilot adapter is active? |
+
+The `.aaw/` files are workflow-control metadata, not product state.
+
+## Durable Project Layers
 
 | Artifact | Question answered |
 |---|---|
@@ -75,10 +86,26 @@ At minimum verify:
 5. Task IDs are unique.
 6. Architecture map is updated when codebase shape changes.
 7. Verification claims are supported by `dev/verification.md` and task evidence.
-6. Verification evidence matches task status.
-8. Commit claims match Git.
-9. README reflects material project-understanding changes.
+8. Verification evidence matches task status.
+9. Commit claims match Git.
+10. README reflects material project-understanding changes.
+11. If `.aaw/migration.yml` is active, no product task is being executed or created.
+12. After migration completion, `.aaw/manifest.yml` reports the verified target version and `.aaw/migration.yml` is absent.
 
 ## Recovery
 
 When state is inconsistent, stop implementation and reconcile the artifacts before continuing.
+
+
+## AAW Migration State
+
+AAW migration is outside normal product task state. During an active migration:
+
+```text
+.aaw/migration.yml = ACTIVE
+product task state  = frozen
+product roadmap     = frozen
+product now.md      = preserved
+```
+
+The migration lock is the durable signal that a new session must resume migration before normal work. A migration may update workflow-owned files and control-plane metadata, but it must preserve product state and unrelated user changes.

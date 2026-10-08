@@ -1,0 +1,6 @@
+# Adaptive Agent Workflow project manifest
+# Authoritative installed-workflow metadata.
+AAW_ID: adaptive-agent-workflow
+AAW_SOURCE: https://github.com/sekedus/adaptive-agent-workflow
+AAW_VERSION: 0.7.1
+AAW_SCHEMA: 1

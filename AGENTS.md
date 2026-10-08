@@ -1,5 +1,8 @@
 # Adaptive Agent Workflow — Project Rules
 
+> AAW_VERSION: 0.7.1
+> Canonical version metadata: `.aaw/manifest.yml`
+
 ## 0. Harness Portability
 
 `AGENTS.md` is the canonical project workflow instruction source. The workflow must not depend on VS Code Copilot-specific instruction files.
@@ -9,7 +12,83 @@
 - If a harness does not support `AGENTS.md`, use its native project-instruction mechanism as an adapter while preserving this file as the canonical project workflow documentation.
 - `wiki/` is human documentation and is not required for runtime workflow execution.
 
-## 1. Repository Is Durable Project Memory
+## 1. AAW Control Plane and Migration
+
+Adaptive Agent Workflow maintenance is a **control-plane operation**, not product work.
+
+Before routing a natural-language request into normal project work, detect whether the user is asking to install, upgrade, downgrade, repair, migrate, or otherwise maintain AAW itself. Examples:
+
+```text
+update adaptive-agent-workflow to 0.7.1
+update AAW to v7
+upgrade aaw
+migrate this project to AAW 0.7.1
+```
+
+Normalize legacy release labels:
+
+```text
+v6   -> 0.6.0
+v7   -> 0.7.0
+v7.1 -> 0.7.1
+```
+
+When an AAW maintenance request is detected, enter `MIGRATION` mode before normal intent routing. `MIGRATION` has precedence over ordinary product intents.
+
+### Migration lock
+
+An active migration is represented by:
+
+```text
+.aaw/migration.yml
+```
+
+If `.aaw/migration.yml` exists and declares `status: ACTIVE`, the repository is in `MIGRATION` mode even when a new session or model starts. Resume and reconcile the migration before any product work.
+
+While `MIGRATION` is active:
+
+- do not create, modify, complete, or reprioritize product tasks;
+- do not advance or rewrite the product roadmap;
+- do not execute unrelated bugs, features, refactors, or design work;
+- preserve existing product state and unrelated user changes.
+
+Migration is not a product task and must not create a `T-*` entry solely for the migration.
+
+### Version detection
+
+Use this order:
+
+1. Read `.aaw/manifest.yml` when present. `AAW_VERSION` is authoritative.
+2. For older installations without the manifest, inspect concrete workflow markers and the workflow specification to establish the exact legacy release.
+3. If the installed version cannot be established safely, stop before modifying workflow files. Do not guess.
+
+### Migration sequence
+
+A migration must be state-preserving, idempotent, resumable, and verifiable:
+
+```text
+detect AAW maintenance intent
+    -> determine installed version
+    -> determine target version
+    -> inspect repository and Git state
+    -> create migration lock
+    -> freeze product work
+    -> migrate workflow-owned files
+    -> reconcile new workflow artifacts with the real project
+    -> verify migration
+    -> update AGENTS.md and harness adapters last
+    -> update `.aaw/manifest.yml`
+    -> remove migration lock
+    -> stop
+```
+
+`AGENTS.md` and `.github/copilot-instructions.md` are control-plane files and must be updated only after target workflow files are staged and verified.
+
+Migration must never overwrite project-specific state merely because a file with the same name exists in the template. Use `docs/workflow/aaw-migration.md`.
+
+After a successful migration, the agent must stop and must not continue into an application task from the same request.
+
+## 2. Repository Is Durable Project Memory
 
 The repository is the durable project memory. Chat history is temporary.
 
@@ -30,7 +109,7 @@ Do not reconstruct project state from old chat history when repository state is 
 
 ---
 
-## 2. Bootstrap Is Not Product Development
+## 3. Bootstrap Is Not Product Development
 
 Installing the Adaptive Agent Workflow into an empty or new project is a bootstrap operation.
 
@@ -48,7 +127,7 @@ For an empty/new project:
 3. Initialize `dev/project.md`, `dev/constraints.md`, `dev/quality.md`, `dev/security.md`, `dev/roadmap.md`, `dev/now.md`, and `dev/verification.md` to reflect the real project.
 4. Initialize `ARCHITECTURE-MAP.md` as the project's living codebase map.
 5. Set the workflow state to `DISCOVERY_PENDING` until a real project objective exists.
-5. Offer the user an `Initial commit` checkpoint after installation and README creation.
+6. Offer the user an `Initial commit` checkpoint after installation and README creation.
 
 For an existing project:
 
@@ -60,7 +139,7 @@ Never copy the template source repository's root `README.md` into an existing pr
 
 ---
 
-## 3. Codebase Understanding and Engineering Discipline
+## 4. Codebase Understanding and Engineering Discipline
 
 `ARCHITECTURE-MAP.md` is the living navigation map for the codebase. It is not a substitute for reading source code; it tells the agent where to look and what relationships matter.
 
@@ -115,7 +194,7 @@ Do not rewrite it for trivial changes that do not alter the codebase shape.
 
 Use `dev/verification.md` as the concrete project-specific verification contract. Do not invent a project-wide "done" standard from memory.
 
-## 3. Natural-Language Intent
+## 5. Natural-Language Intent
 
 The user normally communicates in natural language. Do not require explicit workflow labels such as `MODE: BUILD`.
 
@@ -141,7 +220,7 @@ The user does not need to name these modes.
 
 ---
 
-## 4. Clarification vs. Grilling
+## 6. Clarification vs. Grilling
 
 Do not ask a question merely because something is technically ambiguous.
 
@@ -162,7 +241,7 @@ Do not grill trivial or already-defined changes.
 
 ---
 
-## 5. Execution Boundary
+## 7. Execution Boundary
 
 Questions, explanations, and review requests do not grant production-code modification permission.
 
@@ -172,7 +251,7 @@ When intent is uncertain, prefer the least destructive interpretation.
 
 ---
 
-## 6. Scope Control
+## 8. Scope Control
 
 Do not expand the active task merely because related improvements are visible.
 
@@ -191,7 +270,7 @@ A bare confirmation such as `yes`, `do that`, or `go ahead` refers only to the i
 
 ---
 
-## 7. Task Size Triage
+## 9. Task Size Triage
 
 Do not infer task size from prompt length.
 
@@ -213,7 +292,7 @@ For large work, use `/wayfinder` when available and create bounded tasks instead
 
 ---
 
-## 8. Project State Integrity
+## 10. Project State Integrity
 
 The workflow maintains multiple durable artifacts. Keep them synchronized according to the state transition that occurred.
 
@@ -238,7 +317,7 @@ Never silently choose one contradictory artifact over another.
 
 ---
 
-## 9. State Transactions
+## 11. State Transactions
 
 Treat meaningful project events as state transitions rather than isolated file edits.
 
@@ -325,7 +404,7 @@ Do not create feature or bug records for every trivial change. Do not use these 
 
 ---
 
-## 10. Root README Policy
+## 12. Root README Policy
 
 The root `README.md` is a concise, user-facing explanation of the project.
 
@@ -355,7 +434,7 @@ The template repository's own root README is agent-facing documentation. When in
 
 ---
 
-## 11. Commit Checkpoint Policy
+## 13. Commit Checkpoint Policy
 
 Read `dev/commit-policy.md` as the source of truth for commit behavior. The default policy is `ask` for both initial bootstrap and completed tasks.
 
@@ -412,7 +491,7 @@ A user may override the persistent policy for a specific checkpoint by explicitl
 
 ---
 
-## 12. Context Discipline
+## 14. Context Discipline
 
 Context is a limited resource.
 
@@ -428,7 +507,7 @@ When context is becoming large enough to threaten focus or continuation:
 
 ---
 
-## 13. Interruption / Recovery Protocol
+## 15. Interruption / Recovery Protocol
 
 A session may stop because of context limits, free-model limits, connection errors, tool failures, IDE crashes, or human interruption.
 
@@ -449,7 +528,7 @@ Do not blindly repeat an interrupted operation.
 
 ---
 
-## 14. Checkpoint Rule
+## 16. Checkpoint Rule
 
 A checkpoint is required after a meaningful bounded unit of implementation, verification, decision-making, or significant interruption.
 
@@ -457,7 +536,7 @@ A checkpoint is required after a meaningful bounded unit of implementation, veri
 
 ---
 
-## 15. Skill Dependency Closure
+## 17. Skill Dependency Closure
 
 Some routed skills explicitly invoke other skills. A parent skill is not considered ready until its required dependency closure is available to the current harness.
 
@@ -471,7 +550,7 @@ Before invoking a routed skill:
 
 ---
 
-## 16. Skills, Quality Gates, and the Three Pillars
+## 18. Skills, Quality Gates, and the Three Pillars
 
 Evaluate meaningful product work through three pillars:
 
@@ -485,7 +564,7 @@ Do not require the user to know the correct security skill manually.
 
 ---
 
-## 17. Verification Claims
+## 19. Verification Claims
 
 Distinguish clearly between:
 

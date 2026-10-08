@@ -1,6 +1,35 @@
 # Adaptive Agent Workflow
 
-**Workflow version: v7**
+**Workflow version: 0.7.1**
+
+## 0. AAW Maintenance and Migration
+
+AAW installation, upgrade, downgrade, repair, and migration are control-plane operations. They take precedence over normal product intent routing.
+
+Examples:
+
+```text
+update adaptive-agent-workflow to 0.7.1
+update AAW to v7
+upgrade aaw
+migrate this project to AAW 0.7.1
+```
+
+Legacy labels normalize as `v6 -> 0.6.0` and `v7 -> 0.7.0`. The installed version is read from `.aaw/manifest.yml`, where `AAW_VERSION` is authoritative. Older projects without the manifest must be identified from concrete repository evidence; uncertain versions are a reason to stop rather than guess.
+
+During migration:
+
+```text
+.aaw/migration.yml = ACTIVE
+mode                = MIGRATION
+product tasks       = FROZEN
+product roadmap     = FROZEN
+product state       = PRESERVED
+```
+
+Migration is not represented as a product `T-*` task. It must not create or execute product work. `AGENTS.md` and `.github/copilot-instructions.md` are updated last. The migration ends by writing the target manifest, removing the lock, and stopping.
+
+See [`aaw-migration.md`](aaw-migration.md) for the full procedure.
 
 ## Harness Portability
 
@@ -94,7 +123,7 @@ Examples:
 - "What do you think?"
 - "Could this be a bug?"
 
-**Do not** edit production code merely to answer these questions.
+Do not edit production code merely to answer these questions.
 
 ### Plan
 
@@ -130,7 +159,7 @@ Characteristics:
 - few files;
 - little or no architectural consequence.
 
-**Do not** add unnecessary process.
+Do not add unnecessary process.
 
 ### Medium
 
@@ -167,7 +196,7 @@ Before grilling, inspect the repository so the user is not asked questions that 
 
 Stop grilling when implementation-critical ambiguity is sufficiently resolved.
 
-**Do not** turn every small change into a long interview.
+Do not turn every small change into a long interview.
 
 Persist durable domain vocabulary in `CONTEXT.md` and hard-to-reverse architectural choices in ADRs.
 
@@ -191,7 +220,7 @@ If a required dependency is unavailable, stop the specialized workflow rather th
 
 ---
 
-## 8. Codebase Memory and Engineering Discipline
+## 7. Codebase Memory and Engineering Discipline
 
 `ARCHITECTURE-MAP.md` is the living codebase map. It is intentionally compact and navigational rather than a duplicate of every architecture detail.
 
@@ -227,7 +256,7 @@ existing project capability
     -> new abstraction/dependency only when justified
 ```
 
-**Do not** add abstractions merely for hypothetical future reuse.
+Do not add abstractions merely for hypothetical future reuse.
 
 ### Living map rule
 
@@ -293,7 +322,7 @@ large architectural feature
 -> grill/wayfinder + tests + affected pillar gates + review + ADR
 ```
 
-**Do not** run every expensive skill on every change.
+Do not run every expensive skill on every change.
 
 ### Design Skill Routing
 
@@ -351,7 +380,7 @@ The workflow assumes interruptions are normal.
 
 ### After interruption
 
-**Do not** trust the last conversational claim.
+Do not trust the last conversational claim.
 
 Reconcile:
 
@@ -423,7 +452,7 @@ This allows the user to explore project B without losing the exact resume point 
 
 ---
 
-## 13. Verification Vocabulary
+## 14. Verification Vocabulary
 
 Use explicit evidence labels:
 
@@ -445,7 +474,7 @@ Avoid claims such as "secure" or "fully compatible" unless the evidence supports
 
 ---
 
-## 14. Feature and Bug-Fix Records
+## 15. Feature and Bug-Fix Records
 
 Active work belongs in `dev/tasks/`. Completed work may produce a historical record when it is useful to preserve project understanding.
 
@@ -457,13 +486,13 @@ Create `dev/features/YYYYMMDD-<feature-slug>.md` when the change introduces mean
 
 Create `dev/bug-fixes/YYYYMMDD-<bug-slug>.md` when a bug has been investigated, fixed, and verified and the incident is worth preserving for future troubleshooting, reliability, or security work. Use `.bug-fix-template.md`.
 
-**Do not** create records for every trivial change. The record should summarize the durable lesson and link to the task, ADRs, tests, and commit rather than duplicating implementation details.
+Do not create records for every trivial change. The record should summarize the durable lesson and link to the task, ADRs, tests, and commit rather than duplicating implementation details.
 
 Feature/bug records are part of the state transaction that closes the work, but they do not replace the task or `now.md`.
 
 ---
 
-## 15. Final Checkpoint
+## 16. Final Checkpoint
 
 Before ending a meaningful session, `dev/now.md` should answer:
 
@@ -480,7 +509,7 @@ If these cannot be answered, the handoff is incomplete.
 
 ---
 
-## v5 State-Integrity Lifecycle
+## Historical: 0.5.0 State-Integrity Lifecycle
 
 Adaptive Agent Workflow separates bootstrap from product development. Installing the workflow in an empty/new project does not create product tasks. It produces a `DISCOVERY_PENDING` state, creates a project-specific root README, validates the installation, and applies the `initial` commit policy (default: `ask`).
 
@@ -492,6 +521,24 @@ Commit policy is stored in `dev/commit-policy.md`. `initial` and `task` are inde
 
 The template repository's own root README is agent-facing documentation and is not copied verbatim into target projects. For an empty/new project, the agent generates a user-facing README from the actual project state. Existing project READMEs are preserved and updated only when project understanding materially changes.
 
-## v7 Engineering Discipline Summary
+## Historical: 0.7.0 Engineering Discipline Summary
 
-The v7 layer adds codebase memory and engineering discipline to the recovery-first workflow. Project state remains centered on `now.md`, tasks, roadmap, and Git, while `ARCHITECTURE-MAP.md` explains the shape of the codebase and `dev/verification.md` defines concrete evidence for completion.
+The 0.7.0 layer adds codebase memory and engineering discipline to the recovery-first workflow. Project state remains centered on `now.md`, tasks, roadmap, and Git, while `ARCHITECTURE-MAP.md` explains the shape of the codebase and `dev/verification.md` defines concrete evidence for completion.
+
+
+## 0.7.1 Migration Foundation
+
+The 0.7.1 layer adds explicit workflow control metadata:
+
+```text
+.aaw/manifest.yml
+    = authoritative installed AAW version
+
+.aaw/migration.yml
+    = durable active-migration lock/state
+
+MIGRATION
+    = control-plane mode with product work frozen
+```
+
+This lets a user request an AAW upgrade using natural language while the agent determines the installed release, preserves project state, migrates workflow-owned files, verifies the target, updates control instructions last, and stops without executing an application task.

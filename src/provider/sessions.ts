@@ -13,14 +13,16 @@ import { messageText } from "./messages";
  *   (stable across turns, distinct across chats), else an explicit id from
  *   provider options when supplied, else a hash of
  *   (workspace + model + first message).
- * - LRU cap (`oct.maxSessions`, default 200): evicting a key only forgets
- *   the mapping — sessions are never deleted on the hot path (dead entries
- *   are pruned via the status command). When the cap is hit at create time,
- *   entries already known dead (conversation flagged by a prior 404 via
- *   `markDead`) go first without a server round trip — they are
- *   gone-confirmed, so nothing joins the graveyard and nothing joins the
- *   dropped record (already retired via `dead`) — then oldest-live as
- *   before (T-0017). Dropped-but-possibly-live session
+ * - LRU cap (`oct.maxSessions`, default 200) per workspace directory group
+ *   (T-0025): evicting a key only forgets the mapping — sessions are never
+ *   deleted on the hot path (dead entries are pruned via the status command).
+ *   When the cap is hit at create time, entries already known dead in the
+ *   new entry's group (conversation flagged by a prior 404 via `markDead`)
+ *   go first without a server round trip — they are gone-confirmed, so
+ *   nothing joins the graveyard and nothing joins the dropped record
+ *   (already retired via `dead`) — then oldest-live in the same group as
+ *   before (T-0017). Other groups are never touched: filling group A past
+ *   the cap never evicts group B. Dropped-but-possibly-live session
  *   ids are remembered in the orphan graveyard (T-0016) for the explicit
  *   opt-in cleanup command; nothing is ever deleted automatically.
  * - Dropped-mapping record (T-0019): every dropped mapping (create-eviction
@@ -140,17 +142,32 @@ interface Entry {
 }
 
 /**
- * Eviction choice for a full map (T-0017, pure): oldest dead-flagged key
- * first (known gone via a prior 404 — no server round trip, no graveyard),
- * else oldest-live. `keysInOrder` is oldest-first (Map insertion order).
- * Returns undefined when empty. Exported for unit tests; `create` owns I/O.
+ * Eviction choice for a full group (T-0017, per-group since T-0025, pure):
+ * oldest dead-flagged key first (known gone via a prior 404 — no server
+ * round trip, no graveyard), else oldest-live. `keysInOrder` is oldest-first
+ * (Map insertion order). When `groupOf` + `victimGroup` are supplied, only
+ * keys in the victim group are considered (dead-first still holds within the
+ * victim group only; other groups are never touched). Returns undefined when
+ * empty (or when the victim group is empty). Exported for unit tests;
+ * `create` owns I/O.
  */
 export function chooseEvictionKey(
   keysInOrder: Iterable<string>,
   dead: ReadonlySet<string>,
+  groupOf?: (key: string) => string | undefined,
+  victimGroup?: string,
 ): string | undefined {
+  const inVictim = (key: string): boolean => {
+    if (!groupOf || victimGroup === undefined) {
+      return true;
+    }
+    return groupOf(key) === victimGroup;
+  };
   let oldest: string | undefined;
   for (const key of keysInOrder) {
+    if (!inVictim(key)) {
+      continue;
+    }
     if (oldest === undefined) {
       oldest = key;
     }
@@ -165,6 +182,16 @@ export function chooseEvictionKey(
 export const UNKNOWN_DIRECTORY_GROUP = "unknown";
 
 /**
+ * Group key for a stored workspace directory (T-0025, pure): the trimmed
+ * directory, or `"unknown"` when missing/blank. Shared by the per-group cap
+ * (`create` + `restore`) and the grouped display so eviction and status agree
+ * on what a group is. Exported for unit tests.
+ */
+export function directoryGroupKey(directory?: string): string {
+  return directory && directory.trim() ? directory : UNKNOWN_DIRECTORY_GROUP;
+}
+
+/**
  * Group map snapshots by workspace directory (T-0017, pure): entries keep
  * their relative order within a group; groups sort by directory with
  * "unknown" last. Exported for unit tests; the status command owns display.
@@ -174,7 +201,7 @@ export function groupSnapshotsByDirectory<
 >(entries: readonly T[]): Array<{ directory: string; entries: T[] }> {
   const groups = new Map<string, T[]>();
   for (const entry of entries) {
-    const dir = entry.directory && entry.directory.trim() ? entry.directory : UNKNOWN_DIRECTORY_GROUP;
+    const dir = directoryGroupKey(entry.directory);
     const list = groups.get(dir);
     if (list) {
       list.push(entry);
@@ -560,7 +587,7 @@ export function conversationKey(
 export class OctSessionMap {
   private readonly entries = new Map<string, Entry>();
   private readonly inflight = new Map<string, Promise<string>>();
-  /** Configured conversation→session cap (LRU). */
+  /** Configured conversation→session cap, enforced per workspace directory group (T-0025). */
   private readonly maxEntries: number;
   /** Keys restored from storage whose session existence is not yet verified. */
   private readonly unverified = new Set<string>();
@@ -840,11 +867,13 @@ export class OctSessionMap {
   }
 
   /** Load persisted entries; every restored key needs a server check on first use.
-   *  Rows past the cap are restore-cap drops (T-0019): their ids join the
-   *  graveyard and their keys join the dropped record, so a returning chat is
-   *  retired instead of silently forking and the cleanup command can list them.
-   *  The graveyard + dropped record are already loaded (constructor order), so
-   *  bury/record during restore appends correctly (PL-0002 ordering).
+   *  Rows past the per-group cap are restore-cap drops (T-0019, per-group
+   *  since T-0025): their ids join the graveyard and their keys join the
+   *  dropped record, so a returning chat is retired instead of silently
+   *  forking and the cleanup command can list them. V1 rows without a
+   *  directory migrate into the `unknown` group. The graveyard + dropped
+   *  record are already loaded (constructor order), so bury/record during
+   *  restore appends correctly (PL-0002 ordering).
    */
   private restore(): void {
     if (!this.store) {
@@ -857,6 +886,7 @@ export class OctSessionMap {
       }
       let restored = 0;
       let dropped = 0;
+      const groupCounts = new Map<string, number>();
       for (const item of raw) {
         if (!Array.isArray(item) || item.length !== 2) {
           continue;
@@ -878,7 +908,8 @@ export class OctSessionMap {
         // (group "unknown"). Non-string values are dropped, never crash.
         const rawDir = record["directory"];
         const directory = typeof rawDir === "string" && rawDir.trim() ? rawDir : undefined;
-        if (this.entries.size >= this.maxEntries) {
+        const group = directoryGroupKey(directory);
+        if ((groupCounts.get(group) ?? 0) >= this.maxEntries) {
           if (!this.dead.has(key)) {
             this.bury(sessionId);
             this.recordDropped(key, sessionId);
@@ -888,6 +919,7 @@ export class OctSessionMap {
         }
         this.entries.set(key, directory === undefined ? { sessionId, modelKey } : { sessionId, modelKey, directory });
         this.unverified.add(key);
+        groupCounts.set(group, (groupCounts.get(group) ?? 0) + 1);
         restored++;
       }
       if (restored > 0) {
@@ -1092,8 +1124,26 @@ export class OctSessionMap {
     const modelKey = modelKeyFor(model.pickerId, model.variant);
     const entry: Entry = dir === undefined ? { sessionId: info.id, modelKey } : { sessionId: info.id, modelKey, directory: dir };
     this.entries.set(key, entry);
-    while (this.entries.size > this.maxEntries) {
-      const victim = chooseEvictionKey(this.entries.keys(), this.dead);
+    // T-0025: cap per workspace directory group — only the new entry's group
+    // is a victim candidate; other groups are never touched.
+    const victimGroup = directoryGroupKey(dir);
+    const groupOf = (k: string): string | undefined => {
+      const e = this.entries.get(k);
+      // `key` itself is always present here; unknown keys fall back to the
+      // victim group so a missing read never widens eviction to other groups.
+      return e ? directoryGroupKey(e.directory) : victimGroup;
+    };
+    const countInGroup = (): number => {
+      let n = 0;
+      for (const e of this.entries.values()) {
+        if (directoryGroupKey(e.directory) === victimGroup) {
+          n++;
+        }
+      }
+      return n;
+    };
+    while (countInGroup() > this.maxEntries) {
+      const victim = chooseEvictionKey(this.entries.keys(), this.dead, groupOf, victimGroup);
       if (!victim) {
         break;
       }
@@ -1103,7 +1153,7 @@ export class OctSessionMap {
         // chat is already retired via `dead`.
         this.entries.delete(victim);
         this.unverified.delete(victim);
-        logLine(`Session map evicted dead conversation (cap ${this.maxEntries}).`);
+        logLine(`Session map evicted dead conversation in group [${victimGroup}] (cap ${this.maxEntries}).`);
         continue;
       }
       const evictedId = this.entries.get(victim)?.sessionId;
@@ -1113,7 +1163,7 @@ export class OctSessionMap {
         this.bury(evictedId);
         this.recordDropped(victim, evictedId);
       }
-      logLine(`Session map evicted oldest conversation (cap ${this.maxEntries}).`);
+      logLine(`Session map evicted oldest conversation in group [${victimGroup}] (cap ${this.maxEntries}).`);
     }
     this.persist();
     logLine(`Conversation ${key} mapped to session ${info.id} (${model.pickerId}).`);

@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (T-0001..T-0023 COMPLETE; roadmap + tasks agree, no open tasks)
+CONSISTENT (T-0001..T-0025 VERIFIED in `dev/tasks/done/`; M5 T-0026..T-0030 PLANNED in `dev/tasks/`; roadmap + tasks agree)
 
 ## Current Milestone
 
-M4 — COMPLETE (2026-10-07): approval UX, thinking-effort picker, parked PL-0001..PL-0004, TS lint. All verified.
+M5 — PLANNED (2026-10-10): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). T-0024..T-0030 open.
 
 ## Current Task
 
-None — T-0023 complete 2026-10-07, no open tasks. Awaiting next scope.
+T-0026 — Cleanup retired engine sessions (PLANNED, next).
 
 ## Current Step
 
-T-0023 COMPLETE 2026-10-07 (image ferry data:-only + 15 MB cap; `tsc` 0, `npm test` 147/147; EDH A+B green + regression pass). Docs sweep + AAW 0.7.1 committed (see Last Commit). No open tasks.
+T-0025 VERIFIED 2026-10-10 (`lint` + `test` 159/159 + `compile` green + owner EDH PASS: 2+2 per-group, A3 evicts A1 only, reload stable). Next: implement T-0026.
 
 ## Objective
 
@@ -69,11 +69,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_M4_COMPLETE
+STATE_M5_PLANNED
 
 ## Next Action
 
-None — HEAD is `1b37d02` (AAW 0.7.1). Scope post-M4 work with the user.
+T-0024 complete and verified. A commit is recommended as a checkpoint for review, recovery, and safe continuation. Commit now? After that: implement T-0025.
 
 ## Current Blocker
 
@@ -81,7 +81,8 @@ None.
 
 ## Relevant Files
 
-- `dev/tasks/T-0011-max-sessions-setting.md` through `dev/tasks/T-0023-multimodal-ferry.md` (M3: T-0011..T-0017; M4: T-0018..T-0023)
+- `dev/milestones/M-0005-scale-observability.md` (M5 scope + decisions 2026-10-10)
+- `dev/tasks/T-0024-typescript-6.0.3.md` through `dev/tasks/T-0030-model-switch.md` (M5 planned)
 - `src/provider/sessions.ts` (map cap 200, evict-dead-first, directory groups, graveyard, dropped record)
 - `src/provider/permissions.ts` (Copilot-gated Allow/Cancel, read-silent, no trust)
 - `src/provider/images.ts` + `src/provider/tools.ts` (image ferry caps + 32 MB body)
@@ -93,6 +94,7 @@ None.
 - `dev/constraints.md`
 - `dev/security.md`
 - `dev/verification.md` (verification contract, AAW 0.7.1)
+- `dev/hdt.md` (human/runtime verification gate, AAW 0.7.2)
 
 ## Constraints
 
@@ -100,7 +102,7 @@ None.
 
 ## Verification
 
-Status: VERIFIED (M4 COMPLETE 2026-10-07: T-0018..T-0023; M3 COMPLETE 2026-10-05: T-0011..T-0017 at `be123c1`; per-task `tsc` + `npm test` + EDH evidence in `dev/tasks/`)
+Status: VERIFIED (T-0025 2026-10-10: `lint` + `test` 159/159 + `compile` green + owner EDH PASS. Prior: T-0024 2026-10-10: `lint` + `test` 147/147 + `compile` green + human PASS. M5 T-0026..T-0030 PLANNED. M4 VERIFIED 2026-10-07, M3 VERIFIED 2026-10-05 at `be123c1`; per-task evidence in task files)
 
 Evidence (M2 baseline; M3/M4 detail lives in per-task Evidence):
 
@@ -124,7 +126,7 @@ See `dev/commit-policy.md`. (now.md previously claimed AUTO; corrected to match 
 
 ## Last Commit
 
-`1b37d02 feat: update AAW to 0.7.1` (workflow control-plane: manifest + migration doc; prior `5e33341` added `ARCHITECTURE-MAP.md` + `dev/verification.md`; prior `6698ff3` docs sweep M3/M4). No product-code changes since `6208b4f`. Worktree has this uncommitted now.md checkpoint only.
+`8c078ba feat: update AAW to 0.7.2` (workflow control-plane: tasks/bug-fixes → `done/`, `dev/features/` removed, `dev/hdt.md` + `dev/changelog-policy.md` + `dev/milestones/` added, parking-lot RESOLVED entries pruned; prior `1b37d02` AAW 0.7.1 superseded rewritten `2f85285`). No product-code changes since `6208b4f`. Worktree has this uncommitted now.md checkpoint only.
 
 ## README Status
 
@@ -132,7 +134,7 @@ CURRENT — M4 COMPLETE (2026-10-07) + M3 (`be123c1`, 2026-10-05): image ferry (
 
 ## Important Context
 
-Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). M3 COMPLETE 2026-10-05 (`be123c1`): scale hardening T-0011..T-0017. M4 COMPLETE 2026-10-07: T-0018..T-0023 (lint, dropped-mapping, Copilot-gated approval, Thinking Effort, per-chat directory, image ferry). Workflow AAW 0.7.1 installed 2026-10-08 (manifest `.aaw/manifest.yml`, no migration lock; `ARCHITECTURE-MAP.md` + `dev/verification.md` added by `5e33341`). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
+Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session map. Tool bridge COMPLETE (T-0006, verified 2026-10-02). M3 COMPLETE 2026-10-05 (`be123c1`): scale hardening T-0011..T-0017. M4 COMPLETE 2026-10-07: T-0018..T-0023 (lint, dropped-mapping, Copilot-gated approval, Thinking Effort, per-chat directory, image ferry). Workflow AAW 0.7.2 installed 2026-10-08 (manifest `.aaw/manifest.yml`, no migration lock; 0.7.1 added `ARCHITECTURE-MAP.md` + `dev/verification.md`; 0.7.2 moved tasks/bug-fixes to `done/`, removed `dev/features/`, added `dev/hdt.md` + `dev/changelog-policy.md` + `dev/milestones/`, pruned RESOLVED parking-lot entries leaving PL-0005/PL-0006). References in %TEMP% (refreshed 2026-09-30): opencode v2 (f0f4c94), openchamber v2 (90726f9), opencode-copilot-chat (191f6df), opencode-llm-proxy v1 (8c262c4), vscode (08d4889, tag 1.135.0). Local opencode v2.0.21 (was 2.0.18 at M1). Bug-fix records: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
 
 ## Do Not Change
 
@@ -140,7 +142,7 @@ Discovery done 2026-09-29: VS Code 1.125+, managed+external server, 1:1 session 
 
 ## Last Session
 
-Docs sweep committed `6698ff3`, then AAW workflow commits `5e33341` (map + verification contract) and `1b37d02` (AAW 0.7.1). No open tasks. No blocker.
+AAW 0.7.2 committed `8c078ba` (tasks/bug-fixes → `done/`, parking-lot pruned to PL-0005/PL-0006). No open tasks. No blocker.
 
 ## Resume Instruction
 

@@ -64,7 +64,7 @@ A later turn in a dropped chat is retired: it reports `OCT: the opencode session
 - `AGENTS.md` — project operating rules.
 - `dev/now.md` — current-state checkpoint; read first when resuming.
 - `dev/roadmap.md` — milestones and task direction.
-- `dev/tasks/T-0003-chat-provider-sessions.md` — completed task (provider + session reuse).
+- `dev/tasks/done/T-0003-chat-provider-sessions.md` — completed task (provider + session reuse).
 - `docs/adr/0001-oct-bridge-architecture.md` — architecture decision.
 - `CONTEXT.md` — domain vocabulary (`OCT`, engine, bridge, session sprawl).
 

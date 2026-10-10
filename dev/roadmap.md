@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M4 — COMPLETE (2026-10-07): approval UX (attention + Copilot levels), thinking-effort picker, parked scale/mill work (PL-0001..PL-0004), TypeScript lint. All items verified.
+M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap, retired-cleanup, session table, session stats, human README, model-switch regression). See `dev/milestones/M-0005-scale-observability.md`.
 
 ## Tasks
 
@@ -32,14 +32,21 @@ M4 — COMPLETE (2026-10-07): approval UX (attention + Copilot levels), thinking
 - `T-0021` — Thinking Effort via configure-model (engine variants, single entry) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 117/117, live create/switch variant probe green, EDH steps 1–7 green incl. same-session effort switch).
 - `T-0022` — Per-folder workspace directory (PL-0003, multi-root) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 128/128, two-folder EDH green).
 - `T-0023` — Multimodal tool-result ferry (PL-0001) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 147/147, EDH A+B green + regression pass).
+- `T-0024` — TypeScript 6.0.3 upgrade — COMPLETE (2026-10-10: 6.0.3 + `types:["node"]`, `lint` + `test` 147/147 + `compile` green, human verification PASS).
+- `T-0025` — Per-workspace session cap — VERIFIED (2026-10-10: `lint` + `test` 159/159 + `compile` green + owner EDH PASS: 2+2 per-group, A3 evicts A1 only, reload stable).
+- `T-0026` — Cleanup retired engine sessions — PLANNED (M5: dead+dropped+orphans).
+- `T-0027` — Session map table (webview) — PLANNED (M5: `oct.showSessions`, 4 columns).
+- `T-0028` — Session stats (usage DataPart + status) — PLANNED (M5: Session Info feed).
+- `T-0029` — Human-readable README — PLANNED (M5).
+- `T-0030` — Model-switch regression (exist/dropped/deleted) — PLANNED (M5 test).
 
 ## Future Milestones
 
-- None defined — post-M4 scope undecided.
+- None — M5 active (T-0024..T-0030 PLANNED 2026-10-10).
 
 ## Roadmap Rules
 
 - Task IDs are unique and monotonic within the project.
 - The task referenced by `dev/now.md` must exist here with the same ID and objective.
 - Completed tasks move to a completed state and must not remain the active task.
-- Roadmap entries describe direction and task status; detailed execution belongs in `dev/tasks/`.
+- Roadmap entries describe direction and task status; detailed execution belongs in `dev/tasks/` (active) and `dev/tasks/done/` (completed).

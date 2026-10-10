@@ -90,7 +90,7 @@
           "type": "integer",
           "default": 200,
           "minimum": 1,
-          "markdownDescription": "Maximum Copilot conversations mapped to opencode sessions (entries for deleted sessions evicted first, then oldest). Requires a window reload after changing."
+          "markdownDescription": "Maximum Copilot conversations mapped to opencode sessions per workspace directory group (entries for deleted sessions evicted first, then oldest; other folders never evicted). Requires a window reload after changing."
         }
       }
     },
@@ -118,6 +118,6 @@
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.125.0",
     "@vscode/vsce": "^4.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^6.0.3"
   }
 }

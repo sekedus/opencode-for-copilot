@@ -20,7 +20,7 @@ export interface OctSettings {
    * a fresh token every reload. Loopback-only secret — never logged.
    */
   callbackToken: string;
-  /** Max mapped conversations (session map cap, LRU). */
+  /** Max mapped conversations per workspace directory group (session map cap, LRU within the group). */
   maxSessions: number;
 }
 
@@ -29,7 +29,7 @@ function getConfig(): vscode.WorkspaceConfiguration {
 }
 
 const DEFAULT_PERMISSION_TIMEOUT_MS = 60_000;
-/** Default conversation→session map cap (overridden by `oct.maxSessions`). */
+/** Default conversation→session map cap per workspace directory group (overridden by `oct.maxSessions`). */
 export const DEFAULT_MAX_SESSIONS = 200;
 
 export function readSettings(): OctSettings {

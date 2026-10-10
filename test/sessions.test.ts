@@ -7,6 +7,7 @@ import {
   DELETED_SESSION_MESSAGE,
   DROPPED_SESSION_MESSAGE,
   deriveSessionTitle,
+  directoryGroupKey,
   extractUserPromptText,
   fallbackSessionTitle,
   isSessionGoneError,
@@ -459,8 +460,8 @@ describe("evict-dead-first at create time (T-0017)", () => {
   it("cap hit with dead entries present drops dead first, live kept, no burial", async () => {
     const store = fakeStore({
       "oct.conversationSessions.v1": [
-        ["conv:live", { sessionId: "ses_live", modelKey: "m" }],
-        ["conv:doomed", { sessionId: "ses_doomed", modelKey: "m" }],
+        ["conv:live", { sessionId: "ses_live", modelKey: "m", directory: "D:\\work" }],
+        ["conv:doomed", { sessionId: "ses_doomed", modelKey: "m", directory: "D:\\work" }],
       ],
     });
     const map = new OctSessionMap(store, 2);
@@ -478,8 +479,8 @@ describe("evict-dead-first at create time (T-0017)", () => {
   it("cap hit with no dead entries evicts oldest-live and buries it", async () => {
     const store = fakeStore({
       "oct.conversationSessions.v1": [
-        ["conv:old", { sessionId: "ses_old", modelKey: "m" }],
-        ["conv:keep", { sessionId: "ses_keep", modelKey: "m" }],
+        ["conv:old", { sessionId: "ses_old", modelKey: "m", directory: "D:\\work" }],
+        ["conv:keep", { sessionId: "ses_keep", modelKey: "m", directory: "D:\\work" }],
       ],
     });
     const map = new OctSessionMap(store, 2);
@@ -640,8 +641,8 @@ describe("dropped record (T-0019)", () => {
   it("create-eviction of a live entry records and buries", async () => {
     const store = fakeStore({
       "oct.conversationSessions.v1": [
-        ["conv:old", { sessionId: "ses_old", modelKey: "m" }],
-        ["conv:keep", { sessionId: "ses_keep", modelKey: "m" }],
+        ["conv:old", { sessionId: "ses_old", modelKey: "m", directory: "D:\\work" }],
+        ["conv:keep", { sessionId: "ses_keep", modelKey: "m", directory: "D:\\work" }],
       ],
     });
     const map = new OctSessionMap(store, 2);
@@ -656,8 +657,8 @@ describe("dropped record (T-0019)", () => {
   it("create-eviction of a dead entry records nothing and buries nothing", async () => {
     const store = fakeStore({
       "oct.conversationSessions.v1": [
-        ["conv:live", { sessionId: "ses_live", modelKey: "m" }],
-        ["conv:doomed", { sessionId: "ses_doomed", modelKey: "m" }],
+        ["conv:live", { sessionId: "ses_live", modelKey: "m", directory: "D:\\work" }],
+        ["conv:doomed", { sessionId: "ses_doomed", modelKey: "m", directory: "D:\\work" }],
       ],
     });
     const map = new OctSessionMap(store, 2);
@@ -1197,5 +1198,191 @@ describe("provider multi-root round-trip (T-0022)", () => {
     const byKey = new Map(snap.map((e) => [e.key, e]));
     assert.equal(byKey.get("conv:multi-a")?.directory, "D:\\work\\a", "reuse pins the create-time directory");
     assert.equal(byKey.get("conv:multi-b")?.directory, "D:\\work\\b");
+  });
+});
+
+describe("directoryGroupKey (T-0025)", () => {
+  it("maps missing/blank directories to unknown", () => {
+    assert.equal(directoryGroupKey(undefined), UNKNOWN_DIRECTORY_GROUP);
+    assert.equal(directoryGroupKey(""), UNKNOWN_DIRECTORY_GROUP);
+    assert.equal(directoryGroupKey("   "), UNKNOWN_DIRECTORY_GROUP);
+  });
+
+  it("keeps real directories verbatim", () => {
+    assert.equal(directoryGroupKey("D:\\work\\a"), "D:\\work\\a");
+    assert.equal(directoryGroupKey("D:\\work\\proj"), "D:\\work\\proj");
+  });
+});
+
+describe("chooseEvictionKey with group filter (T-0025)", () => {
+  it("ignores keys outside the victim group", () => {
+    const groupOf = (key: string): string | undefined =>
+      key.startsWith("conv:a") ? "D:\\work\\a" : "D:\\work\\b";
+    assert.equal(
+      chooseEvictionKey(["conv:a-old", "conv:b-old", "conv:a-new"], new Set(), groupOf, "D:\\work\\b"),
+      "conv:b-old",
+    );
+  });
+
+  it("dead-first holds within the victim group only", () => {
+    const groupOf = (key: string): string | undefined =>
+      key.startsWith("conv:a") ? "D:\\work\\a" : "D:\\work\\b";
+    // conv:a-dead is dead but in the other group — must not win.
+    assert.equal(
+      chooseEvictionKey(
+        ["conv:a-dead", "conv:b-live-old", "conv:b-live-new"],
+        new Set(["conv:a-dead"]),
+        groupOf,
+        "D:\\work\\b",
+      ),
+      "conv:b-live-old",
+    );
+    // Dead in the victim group wins over older live in the same group.
+    assert.equal(
+      chooseEvictionKey(
+        ["conv:b-live-old", "conv:b-dead", "conv:b-live-new"],
+        new Set(["conv:b-dead"]),
+        groupOf,
+        "D:\\work\\b",
+      ),
+      "conv:b-dead",
+    );
+  });
+
+  it("returns undefined when the victim group is empty", () => {
+    const groupOf = (): string | undefined => "D:\\work\\a";
+    assert.equal(chooseEvictionKey(["conv:a-1"], new Set(), groupOf, "D:\\work\\b"), undefined);
+    assert.equal(chooseEvictionKey([], new Set(), groupOf, "D:\\work\\a"), undefined);
+  });
+
+  it("omitted filter keeps the legacy global behavior", () => {
+    assert.equal(chooseEvictionKey(["conv:a", "conv:b"], new Set()), "conv:a");
+    assert.equal(chooseEvictionKey(["conv:a", "conv:b"], new Set(["conv:b"])), "conv:b");
+  });
+});
+
+describe("per-workspace cap at create time (T-0025)", () => {
+  const model = { id: "m", providerID: "p", pickerId: "m" };
+
+  async function withFetchStub(sessionId: string, run: () => Promise<void>): Promise<void> {
+    const realFetch = globalThis.fetch;
+    (globalThis as unknown as Record<string, unknown>)["fetch"] = async () =>
+      new Response(JSON.stringify({ data: { id: sessionId } }), { status: 200 });
+    try {
+      await run();
+    } finally {
+      (globalThis as unknown as Record<string, unknown>)["fetch"] = realFetch;
+    }
+  }
+
+  it("filling group A past cap never evicts group B", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:b1", { sessionId: "ses_b1", modelKey: "m", directory: "D:\\work\\b" }],
+        ["conv:b2", { sessionId: "ses_b2", modelKey: "m", directory: "D:\\work\\b" }],
+        ["conv:a1", { sessionId: "ses_a1", modelKey: "m", directory: "D:\\work\\a" }],
+        ["conv:a2", { sessionId: "ses_a2", modelKey: "m", directory: "D:\\work\\a" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    await withFetchStub("ses_a3", async () => {
+      await map.getOrCreate("conv:a3", { baseUrl: "http://127.0.0.1:9", password: "", directory: "D:\\work\\a" }, model);
+    });
+    assert.equal(map.peek("conv:b1"), "ses_b1", "other group untouched");
+    assert.equal(map.peek("conv:b2"), "ses_b2", "other group untouched");
+    assert.equal(map.peek("conv:a1"), undefined, "oldest in victim group evicted");
+    assert.equal(map.peek("conv:a2"), "ses_a2");
+    assert.equal(map.peek("conv:a3"), "ses_a3");
+    assert.equal(map.isDropped("conv:a1"), true);
+    assert.equal(map.isDropped("conv:b1"), false);
+    assert.deepEqual(map.orphanedSessions(), ["ses_a1"]);
+  });
+
+  it("dead-first holds within the victim group only", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:a-live", { sessionId: "ses_a_live", modelKey: "m", directory: "D:\\work\\a" }],
+        ["conv:a-doomed", { sessionId: "ses_a_doomed", modelKey: "m", directory: "D:\\work\\a" }],
+        ["conv:b-dead", { sessionId: "ses_b_dead", modelKey: "m", directory: "D:\\work\\b" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    map.markDead("conv:b-dead");
+    map.markDead("conv:a-doomed");
+    await withFetchStub("ses_a_new", async () => {
+      await map.getOrCreate("conv:a-new", { baseUrl: "http://127.0.0.1:9", password: "", directory: "D:\\work\\a" }, model);
+    });
+    assert.equal(map.peek("conv:a-doomed"), undefined, "dead in victim group evicted first");
+    assert.equal(map.peek("conv:a-live"), "ses_a_live");
+    assert.equal(map.peek("conv:b-dead"), "ses_b_dead", "dead in other group never evicted");
+    assert.deepEqual(map.orphanedSessions(), [], "gone-confirmed eviction buries nothing");
+  });
+
+  it("unknown group is its own group (blank directory)", async () => {
+    const store = fakeStore({
+      "oct.conversationSessions.v1": [
+        ["conv:u1", { sessionId: "ses_u1", modelKey: "m" }],
+        ["conv:u2", { sessionId: "ses_u2", modelKey: "m" }],
+        ["conv:a1", { sessionId: "ses_a1", modelKey: "m", directory: "D:\\work\\a" }],
+        ["conv:a2", { sessionId: "ses_a2", modelKey: "m", directory: "D:\\work\\a" }],
+      ],
+    });
+    const map = new OctSessionMap(store, 2);
+    await withFetchStub("ses_u3", async () => {
+      await map.getOrCreate("conv:u3", { baseUrl: "http://127.0.0.1:9", password: "", directory: "" }, model);
+    });
+    assert.equal(map.peek("conv:u1"), undefined, "oldest unknown evicted");
+    assert.equal(map.peek("conv:u2"), "ses_u2");
+    assert.equal(map.peek("conv:u3"), "ses_u3");
+    assert.equal(map.peek("conv:a1"), "ses_a1", "directory group untouched");
+    assert.equal(map.peek("conv:a2"), "ses_a2");
+  });
+});
+
+describe("per-workspace cap at restore time (T-0025)", () => {
+  it("overflow is per group: two full groups restore fully", () => {
+    const stored: Array<[string, { sessionId: string; modelKey: string; directory?: string }]> = [
+      ["conv:a1", { sessionId: "ses_a1", modelKey: "m", directory: "D:\\work\\a" }],
+      ["conv:a2", { sessionId: "ses_a2", modelKey: "m", directory: "D:\\work\\a" }],
+      ["conv:b1", { sessionId: "ses_b1", modelKey: "m", directory: "D:\\work\\b" }],
+      ["conv:b2", { sessionId: "ses_b2", modelKey: "m", directory: "D:\\work\\b" }],
+    ];
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }), 2);
+    assert.equal(map.size(), 4, "cap 2 per group holds 2+2");
+    assert.equal(map.peek("conv:a1"), "ses_a1");
+    assert.equal(map.peek("conv:b2"), "ses_b2");
+    assert.deepEqual(map.droppedSnapshot(), [], "no drops when each group fits");
+  });
+
+  it("overflow within one group drops only that group's tail", () => {
+    const stored: Array<[string, { sessionId: string; modelKey: string; directory?: string }]> = [
+      ["conv:a1", { sessionId: "ses_a1", modelKey: "m", directory: "D:\\work\\a" }],
+      ["conv:a2", { sessionId: "ses_a2", modelKey: "m", directory: "D:\\work\\a" }],
+      ["conv:a3", { sessionId: "ses_a3", modelKey: "m", directory: "D:\\work\\a" }],
+      ["conv:b1", { sessionId: "ses_b1", modelKey: "m", directory: "D:\\work\\b" }],
+    ];
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }), 2);
+    assert.equal(map.size(), 3);
+    assert.equal(map.peek("conv:a1"), "ses_a1");
+    assert.equal(map.peek("conv:a2"), "ses_a2");
+    assert.equal(map.peek("conv:a3"), undefined);
+    assert.equal(map.peek("conv:b1"), "ses_b1");
+    assert.equal(map.isDropped("conv:a3"), true);
+    assert.deepEqual(map.orphanedSessions(), ["ses_a3"]);
+  });
+
+  it("v1 rows without directory migrate into unknown without crowding directories", () => {
+    const stored: Array<[string, { sessionId: string; modelKey: string; directory?: string }]> = [
+      ["conv:u1", { sessionId: "ses_u1", modelKey: "m" }],
+      ["conv:u2", { sessionId: "ses_u2", modelKey: "m" }],
+      ["conv:u3", { sessionId: "ses_u3", modelKey: "m" }],
+      ["conv:a1", { sessionId: "ses_a1", modelKey: "m", directory: "D:\\work\\a" }],
+    ];
+    const map = new OctSessionMap(fakeStore({ "oct.conversationSessions.v1": stored }), 2);
+    assert.equal(map.peek("conv:u1"), "ses_u1");
+    assert.equal(map.peek("conv:u2"), "ses_u2");
+    assert.equal(map.peek("conv:u3"), undefined, "third unknown drops");
+    assert.equal(map.peek("conv:a1"), "ses_a1", "directory group unaffected by unknown overflow");
+    assert.equal(map.isDropped("conv:u3"), true);
   });
 });

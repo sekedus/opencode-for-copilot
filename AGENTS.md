@@ -1,6 +1,6 @@
 # Adaptive Agent Workflow — Project Rules
 
-> AAW_VERSION: 0.7.2
+> AAW_VERSION: 0.7.3
 > Canonical version metadata: `.aaw/manifest.yml`
 > Canonical AAW source: `https://github.com/sekedus/adaptive-agent-workflow`
 
@@ -20,10 +20,10 @@ Adaptive Agent Workflow maintenance is a **control-plane operation**, not produc
 Before routing a natural-language request into normal project work, detect whether the user is asking to install, upgrade, downgrade, repair, migrate, or otherwise maintain AAW itself. Examples:
 
 ```text
-update adaptive-agent-workflow to 0.7.2
-update AAW to v0.7.2
+update adaptive-agent-workflow to 0.7.3
+update AAW to v0.7.3
 upgrade aaw
-migrate this project to AAW 0.7.2
+migrate this project to AAW 0.7.3
 ```
 
 Normalize legacy release labels:
@@ -354,6 +354,8 @@ Update:
 - `dev/roadmap.md`
 - `dev/now.md`
 
+When tasks are created as part of a milestone-planning-only request, leave all child tasks `PLANNED`, leave the current-task pointer empty (unless an unrelated task was already active), record the milestone as planned, and stop. Do not start implementation merely because the first task is easy or ready.
+
 A user message is not automatically a new task. Merge a new small request into the active task only when scope, domain, acceptance criteria, and verification boundary genuinely align.
 
 ### Task Progress / Completion
@@ -384,16 +386,20 @@ Decision: ...
 
 Never infer approval from a new session, context compaction, a previous implementation attempt, or silence. After the user answers, record the decision and continue only within the resulting scope.
 
-### Milestone
+### Milestone Planning Boundary
 
-Use `dev/milestones/M-xxxx-*.md` when a request is too broad for one bounded task. A milestone is a compact summary/navigation layer. Detailed execution stays in tasks.
+Use `dev/milestones/M-xxxx-*.md` when a request is too broad for one bounded task. A milestone is a compact summary/navigation layer. Detailed execution stays in task files.
 
-When creating a milestone:
+**A request to create/plan a milestone authorizes planning and durable planning-file updates only. It does not authorize implementation.** When the user provides multiple work items and asks for a milestone, do this and then stop:
 
-1. inspect `dev/parking-lot.md` for clearly related ideas;
-2. show likely candidates;
-3. ask the user whether any should be promoted;
-4. delete promoted parking-lot entries after promotion.
+1. group the requested outcomes into one milestone and bounded child tasks where the scope is clear;
+2. create the milestone and task files with `PLANNED` status;
+3. update `dev/roadmap.md` and the bounded `dev/now.md` snapshot so it records the planned milestone but no task as currently executing;
+4. inspect `dev/parking-lot.md` for clearly related ideas and list likely candidates in the summary, asking whether the user wants any promoted;
+5. do not promote or delete parking-lot entries until the user explicitly selects them; if there is no answer yet, leave them parked and finish the milestone-planning response;
+6. summarize the plan and stop without coding, running product implementation, or starting the first/easiest task.
+
+Do not interpret convenience, low task size, or a long list of tasks as permission to start implementation. Begin a child task only when the user separately asks to start it, or explicitly asks in the same request to create the milestone **and** implement a named task. If the user's request is only to create the milestone, the first task remains `PLANNED`.
 
 Do not silently absorb parking-lot ideas into the milestone.
 
@@ -407,7 +413,37 @@ For a bug outside the active scope, offer a bounded choice:
 - create a separate task under the active milestone; or
 - for a genuinely small standalone fix, create a `B-*` bug-fix task/record and fix it separately.
 
-### Completed Work Lifecycle
+### Task Completion Is Gated by Verification
+
+A task or actively worked standalone bug-fix record is **not complete/closed merely because implementation and automated checks are finished**. Resolve the task's effective HDT requirement using `dev/verification.md`, the task's behavior/scope, and `dev/hdt.md` before finalizing its status.
+
+Use this lifecycle:
+
+```text
+IMPLEMENT
+  -> run applicable automated checks (agent-owned)
+  -> classify HDT as REQUIRED or NOT_REQUIRED
+
+NOT_REQUIRED:
+  -> record automated evidence
+  -> COMPLETE
+  -> move task to done/
+  -> reconcile state
+  -> offer/perform commit according to policy
+
+REQUIRED:
+  -> record automated evidence
+  -> set task status AWAITING_HDT
+  -> keep task in the active folder and as the current task in now.md
+  -> give the user concise manual/runtime steps and expected result
+  -> evaluate the user's report
+  -> PASS: record evidence, mark COMPLETE, move to done/, reconcile state, then commit checkpoint
+  -> FAIL/unclear: keep task active; investigate/fix or request only the missing evidence; repeat the relevant HDT
+```
+
+Do not mark a required-HDT task `COMPLETE`, move it to `done/`, advance the current task, or offer the normal completed-task commit checkpoint before HDT passes. If the user declines a required HDT, set the task's HDT status to `DECLINED`, keep the task active as `AWAITING_HDT` (or `BLOCKED` when there is a concrete blocker), and record the evidence gap; do not silently waive it or repeatedly ask the same question in every response. If the user explicitly asks for a partial checkpoint commit, that commit does not make the task complete or verified.
+
+A task or standalone bug-fix record with `HDT: NOT_REQUIRED` does not need a user verification round. Run the applicable commands/checks yourself when tools and environment allow, record actual outcomes, and report them. **Do not ask the user to rerun the same `lint`, `test`, `compile`, type-check, or other automated command that you already executed successfully.** If you cannot run an applicable check, state exactly why and mark it unverified; only ask the user to run it when their environment is genuinely required or tool access is unavailable.
 
 When a task is complete and verified:
 
@@ -416,7 +452,9 @@ dev/tasks/T-xxxx-*.md
     -> dev/tasks/done/
 ```
 
-When a standalone bug-fix record is complete and verified:
+A standalone bug-fix record follows the same gate: it cannot be marked verified/closed or moved to `done/` until all required automated checks pass and required HDT has a recorded PASS.
+
+When a standalone bug-fix record is complete and verified under its own verification gate:
 
 ```text
 dev/bug-fixes/B-xxxx-*.md
@@ -431,7 +469,7 @@ Active folders should remain easy to scan. Git preserves historical movement.
 
 ### Verification Completed
 
-Use the project-specific contract in `dev/verification.md`. If HDT is applicable, use `dev/hdt.md` and record the result in the task. Do not claim completion without appropriate evidence.
+Use the project-specific contract in `dev/verification.md`. Decide and record whether HDT is `REQUIRED` or `NOT_REQUIRED` for this task. If required, use `dev/hdt.md` and keep the task active until the user's report provides sufficient PASS evidence. Only after all required evidence is complete may the task be marked `COMPLETE`, moved to `done/`, and enter the normal commit checkpoint. Do not ask the user to repeat automated checks that the agent already ran successfully.
 
 ### Commit Created
 
@@ -513,13 +551,15 @@ Suggested ask wording:
 
 ### After Every Completed Task
 
-When a task reaches its completion criteria:
+When the task's required verification gates pass (including HDT when required):
 
-1. verify the task;
+1. mark the task `COMPLETE` and move it to `dev/tasks/done/` (or the corresponding bug-fix `done/` folder);
 2. update affected project state;
 3. review whether the root README needs a meaningful update;
 4. run a state-integrity check;
 5. apply the `task` commit policy.
+
+Do not run this completion/commit sequence while required HDT is still pending or failed.
 
 If `task: ask`, offer a commit:
 
@@ -596,11 +636,18 @@ Do not ask for a design checkpoint for trivial or fully specified changes. Desig
 
 ### Human Development Test
 
-When automated checks cannot fully prove real user/runtime behavior, offer an HDT before the commit checkpoint. The user may decline. A declined HDT does not manufacture verification evidence. See `dev/hdt.md`.
+HDT is a completion gate when the project verification contract or task's runtime/user-visible behavior requires human evidence. Run automated checks first. If HDT is required, the task must remain active as `AWAITING_HDT` until the user's report passes; do not move it to `done/` or offer the normal completion commit checkpoint early. If HDT is not required, record the automated checks the agent actually ran and proceed without asking the user to repeat them. See `dev/hdt.md`.
 
 ### WAIT-WHAT behavior
 
-After meaningful implementation, provide a concise, human-readable report that answers: `What changed? Why? How do I verify it? What should I expect? What should I report if it fails?` The `/wait-what` skill is optional and must not be required for this behavior.
+After meaningful implementation, provide a concise, human-readable report. Always explain what changed and why. Then distinguish the verification path:
+
+- `HDT: NOT_REQUIRED`: report the automated checks the agent actually ran and their outcomes. Do not present already-passed commands as instructions for the user to repeat; no manual verification request is needed.
+- `HDT: REQUIRED`: provide concise, beginner-friendly human/runtime steps, expected behavior, and what to report if it differs. The task remains `AWAITING_HDT` until the report passes.
+
+These paths are mutually exclusive for a given task completion report. Do not claim `HDT: NOT_REQUIRED` and then offer a manual verification checklist for the same behavior.
+
+The `/wait-what` skill is optional and must not be required for this behavior.
 
 ## 18. Skill Dependency Closure
 

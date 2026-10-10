@@ -114,7 +114,7 @@ model will chase the unsatisfiable want forever.
 ## Related Records
 
 - Task: `dev/tasks/T-0006-copilot-tool-bridge.md`
-- Bug: `dev/bug-fixes/20261002-shuttle-duplicate-emit-spin.md` (B-0003, same family)
+- Bug: `dev/bug-fixes/done/B-0003-shuttle-duplicate-emit-spin.md` (B-0003, same family)
 - Commit: `[commit hash]`
 
 ## Follow-up

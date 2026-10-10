@@ -83,6 +83,7 @@ Marketplace publish is out of scope; local VSIX install is the distribution path
   exit 0 alone is NOT `VERIFIED` — EDH/HDT evidence is also required.
 - `IMPLEMENTED` / `UNVERIFIED` per Completion Vocabulary below.
 - A declined HDT never manufactures `VERIFIED`; record the gap as `UNVERIFIED`.
+- Run available automated checks as the agent and record their real results. Do not ask users to repeat commands that already passed in the current worktree. Ask for user execution only when the agent cannot run a required check and the user's environment/access is genuinely needed; distinguish that from an HDT manual/runtime test.
 
 ## HDT Requirements
 
@@ -99,6 +100,8 @@ REQUIRED for (automation cannot prove these):
 
 RECOMMENDED for: model picker entries, Thinking Effort variants, status/output
 text, other user-visible behavior with only partial unit coverage.
+
+For each task, resolve any `RECOMMENDED` item above into an effective task-level `REQUIRED` or `NOT_REQUIRED` HDT decision and record the reason in the task. A `REQUIRED` HDT blocks completion until PASS.
 
 NOT normally required for: docs-only, typo/format-only, internal refactors with
 `lint` + `test` green and no behavior change.

@@ -49,4 +49,6 @@ M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap,
 - Task IDs are unique and monotonic within the project.
 - The task referenced by `dev/now.md` must exist here with the same ID and objective.
 - Completed tasks move to a completed state and must not remain the active task.
+- Completed task files move to `dev/tasks/done/` only after all required verification gates pass (including HDT when required).
+- Creating a milestone and decomposing a multi-item request is planning-only unless the user explicitly authorizes implementation; leave child tasks `PLANNED` and stop.
 - Roadmap entries describe direction and task status; detailed execution belongs in `dev/tasks/` (active) and `dev/tasks/done/` (completed).

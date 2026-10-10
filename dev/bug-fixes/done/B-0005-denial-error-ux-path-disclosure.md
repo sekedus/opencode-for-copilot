@@ -104,7 +104,7 @@ control.
 ## Related Records
 
 - Task: `dev/tasks/T-0006-copilot-tool-bridge.md`
-- Bug: `dev/bug-fixes/20261002-continuation-starvation-retry-breaker.md` (B-0004)
+- Bug: `dev/bug-fixes/done/B-0004-continuation-starvation-retry-breaker.md` (B-0004)
 - Commit: `[commit hash]`
 
 ## Follow-up

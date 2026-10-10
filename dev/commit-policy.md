@@ -3,7 +3,7 @@
 This project uses two independent commit checkpoints:
 
 - `initial` — after Adaptive Agent Workflow bootstrap in an empty/new project.
-- `task` — after each completed and verified task.
+- `task` — only after a task has met all acceptance and verification gates, including HDT when required.
 
 ## Defaults
 
@@ -49,13 +49,13 @@ An `auto` policy does not bypass verification or state integrity.
 
 Before an automatic commit, the agent must:
 
-1. complete the relevant verification;
-2. run/offer HDT when the change requires human/runtime evidence;
+1. complete all required automated verification;
+2. complete required HDT and record a PASS result; an `AWAITING_HDT` task is not eligible for the normal completed-task checkpoint;
 3. synchronize affected project state;
-3. review the root README when applicable;
-4. pass the state-integrity check;
-5. inspect Git status and diff;
-6. ensure the commit contains only changes belonging to the current checkpoint.
+4. review the root README when applicable;
+5. pass the state-integrity check;
+6. inspect Git status and diff;
+7. ensure the commit contains only changes belonging to the current checkpoint.
 
 If unrelated user changes are present or the intended commit scope cannot be determined safely:
 
@@ -65,6 +65,8 @@ If unrelated user changes are present or the intended commit scope cannot be det
 - ask the user whether to proceed manually.
 
 Automatic commits never imply automatic `git push`.
+
+If required HDT is pending, failed, or declined, do not apply the normal completed-task commit policy. Keep the task active and unverified at that gate. The user may explicitly request a partial checkpoint commit; if so, commit only the requested scoped changes and leave the task status incomplete.
 
 ## Commit Messages
 

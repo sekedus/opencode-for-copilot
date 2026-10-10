@@ -16,10 +16,10 @@ AAW control    = migratable
 The user should be able to use natural language:
 
 ```text
-update adaptive-agent-workflow to 0.7.2
-update AAW to v0.7.2
+update adaptive-agent-workflow to 0.7.3
+update AAW to v0.7.3
 upgrade aaw
-migrate this project to AAW 0.7.2
+migrate this project to AAW 0.7.3
 ```
 
 Legacy release labels normalize as `v6 -> 0.6.0` and `v7 -> 0.7.0`.
@@ -37,7 +37,7 @@ Example:
 ```yaml
 AAW_ID: adaptive-agent-workflow
 AAW_SOURCE: https://github.com/sekedus/adaptive-agent-workflow
-AAW_VERSION: 0.7.2
+AAW_VERSION: 0.7.3
 AAW_SCHEMA: 1
 ```
 
@@ -69,8 +69,8 @@ Minimum contract:
 ```yaml
 mode: MIGRATION
 status: ACTIVE
-from: 0.6.0
-to: 0.7.2
+from: 0.7.2
+to: 0.7.3
 ```
 
 Optional fields such as a timestamp or migration identifier may be added.
@@ -175,12 +175,12 @@ Update `AGENTS.md` and `.github/copilot-instructions.md` only after the target w
 
 ### 10. Write the target manifest
 
-For 0.7.2:
+For a 0.7.3 target:
 
 ```yaml
 AAW_ID: adaptive-agent-workflow
 AAW_SOURCE: https://github.com/sekedus/adaptive-agent-workflow
-AAW_VERSION: 0.7.2
+AAW_VERSION: 0.7.3
 AAW_SCHEMA: 1
 ```
 

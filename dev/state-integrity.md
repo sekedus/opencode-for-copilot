@@ -52,12 +52,19 @@ new task file
 When a task is completed:
 
 ```text
-task evidence
+applicable automated checks passed
++ HDT PASS if required (otherwise explicit NOT_REQUIRED rationale)
++ task marked COMPLETE
++ task moved to done/
 + roadmap status
 + now.md next task/state
 + architecture-map update when applicable
 + README review
 ```
+
+For a task with `HDT: REQUIRED`, `AWAITING_HDT` is an active, non-complete state. Keep its task file in `dev/tasks/` and keep it pointed to by `dev/now.md` until a PASS report is recorded. Never move it to `done/` before then. Do not ask the user to rerun automated checks already executed successfully by the agent.
+
+Creating a milestone from a multi-item request is a planning transaction only unless implementation is explicitly requested too: create the milestone and planned task records, update roadmap/now, and stop without starting any task.
 
 When codebase structure changes:
 
@@ -82,18 +89,20 @@ At minimum verify:
 1. `now.md` current task exists.
 2. The same task exists in the roadmap.
 3. Task objective matches roadmap objective.
-4. Completed task is not still active.
-5. Task IDs are unique.
-6. Architecture map is updated when codebase shape changes.
-7. Verification claims are supported by `dev/verification.md` and task evidence.
-8. Verification evidence matches task status.
-9. Commit claims match Git.
-10. README reflects material project-understanding changes.
-11. A completed task is not left in the active task folder; a standalone completed bug record is not left in the active bug folder.
-12. A pending decision is explicit; it is never inferred from session continuity or silence.
-13. If a project maintains `CHANGELOG.md`, release-facing changes are recorded there when applicable.
-14. If `.aaw/migration.yml` is active, no product task is being executed or created.
-15. After migration completion, `.aaw/manifest.yml` reports the verified target version and `.aaw/migration.yml` is absent.
+4. A task is not marked complete while required HDT is pending, failed, or declined.
+5. A task with required HDT stays active and in `dev/tasks/` until a PASS result is recorded.
+6. Completed task is not still active.
+7. Task IDs are unique.
+8. Architecture map is updated when codebase shape changes.
+9. Verification claims are supported by `dev/verification.md` and task evidence.
+10. Verification evidence matches task status.
+11. Commit claims match Git.
+12. README reflects material project-understanding changes.
+13. A completed task is not left in the active task folder; a standalone completed bug record is not left in the active bug folder.
+14. A pending decision is explicit; it is never inferred from session continuity or silence.
+15. If a project maintains `CHANGELOG.md`, release-facing changes are recorded there when applicable.
+16. If `.aaw/migration.yml` is active, no product task is being executed or created.
+17. After migration completion, `.aaw/manifest.yml` reports the verified target version and `.aaw/migration.yml` is absent.
 
 ## Recovery
 

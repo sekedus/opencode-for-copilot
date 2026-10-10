@@ -343,11 +343,16 @@ Never convert "no obvious issue found" into "secure", "bug-free", or "production
 A task is not considered operationally complete until the agent has:
 
 ```text
-verify task
+run applicable automated checks
+  -> resolve HDT requirement
+  -> if required: user HDT report PASS
+  -> only then mark COMPLETE and move to done/
   -> synchronize task/roadmap/now
   -> review README impact
   -> state-integrity check
-  -> offer commit when relevant changes are uncommitted
+  -> offer/perform commit according to policy
 ```
+
+If HDT is `REQUIRED` but pending, failed, or declined, the task remains active as `AWAITING_HDT` (or `BLOCKED` for an actual blocker). Do not offer the normal completed-task commit checkpoint yet. Do not ask the user to rerun automated checks that the agent already executed successfully.
 
 The commit offer is a checkpoint recommendation, not an automatic commit. Commits create useful recovery and review boundaries, especially when the project may later be resumed from a different session, model, IDE, or device.

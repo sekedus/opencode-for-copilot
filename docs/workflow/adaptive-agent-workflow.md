@@ -1,6 +1,6 @@
 # Adaptive Agent Workflow
 
-**Workflow version: 0.7.2**
+**Workflow version: 0.7.3**
 
 ## 0. AAW Maintenance and Migration
 
@@ -9,10 +9,10 @@ AAW installation, upgrade, downgrade, repair, and migration are control-plane op
 Examples:
 
 ```text
-update adaptive-agent-workflow to 0.7.2
-update AAW to v0.7.2
+update adaptive-agent-workflow to 0.7.3
+update AAW to v0.7.3
 upgrade aaw
-migrate this project to AAW 0.7.2
+migrate this project to AAW 0.7.3
 ```
 
 Legacy labels normalize as `v6 -> 0.6.0` and `v7 -> 0.7.0`. The installed version is read from `.aaw/manifest.yml`, where `AAW_VERSION` is authoritative. Older projects without the manifest must be identified from concrete repository evidence; uncertain versions are a reason to stop rather than guess.
@@ -30,6 +30,15 @@ product state       = PRESERVED
 Migration is not represented as a product `T-*` task. It must not create or execute product work. `AGENTS.md` and `.github/copilot-instructions.md` are updated last. The migration ends by writing the target manifest, removing the lock, and stopping.
 
 See [`aaw-migration.md`](aaw-migration.md) for the full procedure.
+
+
+## Milestone Creation Is Planning-Only
+
+When the user provides multiple work items and asks to create/group them into a milestone, create the milestone plus bounded child task records, update `dev/roadmap.md` and the bounded `dev/now.md` snapshot, list related parking-lot candidates for user selection, and stop. Leave unselected parking-lot items untouched. All child tasks remain `PLANNED`; do not start the first or easiest task. Start implementation only if the user explicitly asks to begin a named task or explicitly combines milestone creation with implementation authorization.
+
+## Completion and HDT Gate
+
+The agent runs applicable automated checks and reports their actual results. Do not ask the user to rerun an automated command that the agent already executed successfully. Use `dev/verification.md` to set each task's effective HDT requirement to `REQUIRED` or `NOT_REQUIRED`. If required, the task remains active as `AWAITING_HDT` until a sufficient user-reported PASS is recorded. Only then may the task be marked `COMPLETE`, moved to `dev/tasks/done/`, and enter the normal commit policy. Failed, unclear, or declined required HDT leaves the task active and the evidence gap explicit. If HDT is not required and automated evidence is sufficient, complete/move/commit without an unnecessary human verification round.
 
 ## Harness Portability
 
@@ -382,11 +391,16 @@ If implementation depends on a meaningful user decision, record a `Pending Decis
 
 ### Human Development Test
 
-Offer HDT when automated checks cannot fully prove real human/runtime behavior. Give short beginner-friendly steps and an expected result. Evaluate the user's report as evidence. On FAIL, investigate/fix and repeat the relevant verification. See `dev/hdt.md`.
+Resolve HDT as `REQUIRED` or `NOT_REQUIRED` using the project's verification contract. If required, the task remains active as `AWAITING_HDT` until a sufficient user report passes; do not mark it `COMPLETE`, move it to `done/`, advance the current task, or offer the normal completion commit checkpoint before then. On FAIL/unclear evidence, investigate/fix or ask a targeted follow-up. See `dev/hdt.md`.
 
 ### WAIT-WHAT behavior
 
-After meaningful implementation, briefly explain: what changed, why, how to verify it, what to expect, and what to report if it fails. The `/wait-what` skill is optional; this minimum communication contract is core AAW behavior.
+After meaningful implementation, briefly explain what changed and why, then choose one consistent verification report:
+
+- `NOT_REQUIRED`: report automated checks the agent actually ran and their outcomes. Do not ask the user to rerun them or provide duplicate manual verification steps.
+- `REQUIRED`: provide concise, beginner-friendly human/runtime steps, expected behavior, and what to report if it fails. Keep the task active until PASS.
+
+Do not say HDT is not required and then ask the user to verify the same change manually. The `/wait-what` skill is optional; this communication contract is core AAW behavior.
 
 ## 12. Recovery-First Execution
 
@@ -590,3 +604,11 @@ compact architecture / verification contracts
 ```
 
 The goal is less bookkeeping, not more documentation.
+
+
+## 0.7.3 Planning and Verification Gates
+
+The 0.7.3 layer clarifies two lifecycle boundaries:
+
+- **Milestone creation is planning-only** by default. Create the milestone and planned child task records, update the roadmap/current snapshot, and stop. Do not start a first/easiest task without explicit implementation authorization.
+- **Required HDT gates completion.** Automated checks are run by the agent when possible; a task with required HDT stays active as `AWAITING_HDT` until PASS, then moves to `done/` and enters the commit policy. Toolchain updates still require relevant automated checks, but do not need HDT when the project's verification contract confirms automated evidence is sufficient.

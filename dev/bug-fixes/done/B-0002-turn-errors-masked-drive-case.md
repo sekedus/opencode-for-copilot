@@ -98,7 +98,7 @@ Static + probe verification passes. Live Extension Development Host check (real 
 ## Related Records
 
 - Task: `dev/tasks/T-0003-chat-provider-sessions.md`
-- Bug fix: `dev/bug-fixes/20260930-conversation-session-map.md` (mapping + 404-remap precedent)
+- Bug fix: `dev/bug-fixes/done/B-0001-conversation-session-map.md` (mapping + 404-remap precedent)
 - Upstream engine bug to file: `ancestorDirectories` in `packages/core/src/config/plugin/instruction.ts` needs a root/cycle guard and case-insensitive comparison (sibling `fs.up` already guards).
 
 ## Follow-up

@@ -39,12 +39,14 @@ report
   -> bounded task / investigation
   -> root cause
   -> fix
-  -> verify
-  -> bug-fix record when warranted
-  -> move record to done/ when closed
+  -> run applicable automated checks
+  -> resolve HDT requirement
+  -> if required, wait for HDT PASS while the record stays active
+  -> record completion evidence
+  -> move record to done/ only after all required gates pass
 ```
 
-`done/` is the historical archive. Keep active folders small enough to scan quickly.
+`done/` is the historical archive. Keep active folders small enough to scan quickly. Automated checks are agent-owned when possible; do not ask the user to repeat successful commands. Human/runtime steps are reserved for a required HDT gate.
 
 ## Record Contents
 

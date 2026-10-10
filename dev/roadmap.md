@@ -34,7 +34,7 @@ M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap,
 - `T-0023` — Multimodal tool-result ferry (PL-0001) — COMPLETE (verified 2026-10-07: `tsc` 0, `npm test` 147/147, EDH A+B green + regression pass).
 - `T-0024` — TypeScript 6.0.3 upgrade — COMPLETE (2026-10-10: 6.0.3 + `types:["node"]`, `lint` + `test` 147/147 + `compile` green, human verification PASS).
 - `T-0025` — Per-workspace session cap — VERIFIED (2026-10-10: `lint` + `test` 159/159 + `compile` green + owner EDH PASS: 2+2 per-group, A3 evicts A1 only, reload stable).
-- `T-0026` — Cleanup retired engine sessions — PLANNED (M5: dead+dropped+orphans).
+- `T-0026` — Cleanup retired engine sessions — CANCELLED (2026-10-10, owner decision after goal review; graveyard-only cleanup scope kept).
 - `T-0027` — Session map table (webview) — PLANNED (M5: `oct.showSessions`, 4 columns).
 - `T-0028` — Session stats (usage DataPart + status) — PLANNED (M5: Session Info feed).
 - `T-0029` — Human-readable README — PLANNED (M5).
@@ -42,7 +42,7 @@ M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap,
 
 ## Future Milestones
 
-- None — M5 active (T-0024..T-0030 PLANNED 2026-10-10).
+- None — M5 active (T-0024..T-0025 VERIFIED 2026-10-10; T-0026 CANCELLED; T-0027..T-0030 PLANNED).
 
 ## Roadmap Rules
 

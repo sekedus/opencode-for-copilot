@@ -2,7 +2,7 @@
 
 ## Status
 
-PLANNED (M5, 2026-10-10)
+CANCELLED (M5, 2026-10-10 — owner decision; no code changes, no verification required)
 
 ## Objective
 
@@ -35,4 +35,4 @@ User-scoped M5 item 2. Graveyard-only cleanup leaves engine sessions for deleted
 
 ## Evidence
 
-None yet (PLANNED).
+CANCELLED 2026-10-10 at owner's request after goal review (retired-chat engine-session cleanup via dead/dropped marks; Copilot chat deletion itself is not observable through the provider API). Reason: the retired-mapping semantics are important and stand as-is — T-0013 (deleted session → dead mark, later turns repeat the start-a-new-chat notice) and T-0019 (dropped link → dropped record + graveyard, later turns repeat the link-dropped notice) deliberately contrast *session-gone* vs *link-gone*; folding retired sessions into the delete path would blur that distinction. Task never entered implementation: no source/test changes, nothing to verify. `oct.cleanupOrphans` keeps its current graveyard-only scope.

@@ -14,7 +14,9 @@ import {
   resolveChatDirectory,
   sessionCreatedMs,
   formatSessionAge,
+  shortConversationKey,
 } from "./provider/sessions";
+import { buildSessionTableGroups, createNonce, renderSessionsHtml } from "./provider/sessionTable";
 import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
 
@@ -132,16 +134,8 @@ async function statusCommand(): Promise<void> {
   }
 }
 
-/** Shorten a conversation key for the status list (`conv:<id>` / `hash:<hex>`). */
-function shortConversationKey(key: string): string {
-  const idx = key.indexOf(":");
-  if (idx < 0) {
-    return key;
-  }
-  const prefix = key.slice(0, idx);
-  const rest = key.slice(idx + 1);
-  return rest.length > 12 ? `${prefix}:${rest.slice(0, 12)}…` : key;
-}
+/** Reused sessions panel for `oct.showSessions` (revealed + refreshed on each open). */
+let sessionsPanel: vscode.WebviewPanel | undefined;
 
 /**
  * Verify-and-prune pass shared by startup and status (T-0012).
@@ -232,6 +226,85 @@ async function appendSessionList(lines: string[]): Promise<void> {
         `    ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title}" (found, ${age === undefined ? "age unknown" : `${age} old`})`,
       );
     }
+  }
+}
+
+/**
+ * Session map table (T-0027, read-only webview).
+ *
+ * Same data pass as the status list: prune dead mappings first via per-id
+ * verification, then one engine `GET /api/session` (limit 500) for titles +
+ * last-activity times (display only, never a prune signal). Rows group by
+ * workspace directory with `unknown` last. No actions, no deletes — cleanup
+ * stays `oct.cleanupOrphans`; stats stay T-0028.
+ */
+async function showSessionsCommand(): Promise<void> {
+  if (!chatProvider) {
+    vscode.window.showInformationMessage("OCT: provider is not active. Enable OCT and reload first.");
+    return;
+  }
+  if (serverManager?.getState().status !== "connected") {
+    vscode.window.showInformationMessage("OCT: server is not connected. Nothing to show.");
+    return;
+  }
+  const prunedKeys = await verifyAndPruneConversations();
+  const mapped = chatProvider.mappedSessions();
+  const { baseUrl, password } = chatProvider.serverTarget();
+  const infoById = new Map<string, unknown>();
+  try {
+    const listed = await listSessions(baseUrl, password, { limit: 500 });
+    for (const item of listed) {
+      infoById.set(item.id, item);
+    }
+  } catch (error) {
+    logLine(`Session table list failed (map unchanged): ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const groups = buildSessionTableGroups(mapped, infoById, Date.now());
+  const html = renderSessionsHtml(groups, mapped.length, prunedKeys.length, createNonce());
+  if (sessionsPanel) {
+    sessionsPanel.reveal(vscode.ViewColumn.One, false);
+    sessionsPanel.webview.html = html;
+    return;
+  }
+  sessionsPanel = vscode.window.createWebviewPanel(
+    "octSessions",
+    "OCT Sessions",
+    vscode.ViewColumn.One,
+    { enableScripts: true, retainContextWhenHidden: true },
+  );
+  sessionsPanel.webview.onDidReceiveMessage((message: unknown) => {
+    void handleSessionsMessage(message);
+  });
+  sessionsPanel.onDidDispose(() => {
+    sessionsPanel = undefined;
+  });
+  sessionsPanel.webview.html = html;
+}
+
+/**
+ * Answer webview `open-folder` clicks (folder links in the sessions table).
+ * The path comes from our own rendered markup, but it is still validated as
+ * a non-empty string before `openExternal` — never executed, only opened in
+ * the OS file manager.
+ */
+async function handleSessionsMessage(message: unknown): Promise<void> {
+  if (typeof message !== "object" || message === null) {
+    return;
+  }
+  const msg = message as Record<string, unknown>;
+  if (msg["command"] !== "open-folder" || typeof msg["path"] !== "string" || !msg["path"].trim()) {
+    return;
+  }
+  const folder = msg["path"];
+  try {
+    const opened = await vscode.env.openExternal(vscode.Uri.file(folder));
+    if (!opened) {
+      vscode.window.showErrorMessage(`OCT: could not open folder '${folder}'.`);
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `OCT: could not open folder '${folder}' (${error instanceof Error ? error.message : String(error)}).`,
+    );
   }
 }
 
@@ -346,6 +419,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("oct.enable", enableCommand),
     vscode.commands.registerCommand("oct.disable", disableCommand),
     vscode.commands.registerCommand("oct.status", statusCommand),
+    vscode.commands.registerCommand("oct.showSessions", showSessionsCommand),
     vscode.commands.registerCommand("oct.refreshModels", refreshModelsCommand),
     vscode.commands.registerCommand("oct.cleanupOrphans", cleanupOrphansCommand),
     { dispose: () => disposeOutputChannel() },

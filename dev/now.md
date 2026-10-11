@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (M5: T-0024/T-0025 VERIFIED + T-0026 CANCELLED in `dev/tasks/done/`; T-0027..T-0030 PLANNED in `dev/tasks/`; current task T-0027 matches roadmap)
+CONSISTENT (M5: T-0024/T-0025/T-0027 VERIFIED + T-0026 CANCELLED in `dev/tasks/done/`; T-0028..T-0030 PLANNED in `dev/tasks/`; current task T-0028 matches roadmap)
 
 ## Current Milestone
 
-M5 — IN_PROGRESS (2026-10-10): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). T-0024/T-0025 VERIFIED; T-0026 CANCELLED; T-0027..T-0030 open.
+M5 — IN_PROGRESS (2026-10-10): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). T-0024/T-0025/T-0027 VERIFIED; T-0026 CANCELLED; T-0028..T-0030 open.
 
 ## Current Task
 
-T-0027 — Session map table (webview) (PLANNED, next).
+T-0028 — Session stats (usage DataPart + status) (PLANNED, next).
 
 ## Current Step
 
-T-0026 CANCELLED 2026-10-10 (owner decision: retired-mapping semantics stand as-is; `cleanupOrphans` keeps graveyard-only scope; no code changes). Next: implement T-0027 when the user asks.
+T-0027 VERIFIED 2026-10-11 (`oct.showSessions` grouped table, `lint` + `test` 185/185 + `compile` green + owner EDH PASS on the final shape). Moved to `dev/tasks/done/`. Next: start T-0028 when the user asks.
 
 ## Objective
 
@@ -36,11 +36,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_T-0027_NEXT
+STATE_T-0027_VERIFIED
 
 ## Next Action
 
-T-0027 is next (PLANNED). Start it when the user asks.
+T-0028 is next (PLANNED). Start it when the user asks.
 
 ## Current Blocker
 
@@ -61,7 +61,7 @@ None.
 
 ## Verification Snapshot
 
-Status: VERIFIED (T-0025 2026-10-10: `lint` + `test` 159/159 + `compile` green + owner EDH PASS; per-task evidence in task files. T-0026 CANCELLED, no verification required. T-0027..T-0030 PLANNED.)
+Status: VERIFIED (T-0025 2026-10-10: `lint` + `test` 159/159 + `compile` green + owner EDH PASS; T-0027 2026-10-11: `lint` + `test` 185/185 + `compile` green + owner EDH PASS; per-task evidence in task files. T-0026 CANCELLED, no verification required. T-0028..T-0030 PLANNED.)
 
 ## Commit Policy
 
@@ -80,7 +80,7 @@ No README change required by this snapshot rewrite (workflow bookkeeping only). 
 
 ## Important Context
 
-- M5 IN_PROGRESS: T-0024/T-0025 VERIFIED (`f1e118c`); T-0026 CANCELLED; T-0027..T-0030 PLANNED.
+- M5 IN_PROGRESS: T-0024/T-0025 (`f1e118c`) + T-0027 VERIFIED; T-0026 CANCELLED; T-0028..T-0030 PLANNED.
 - Workflow AAW 0.7.3 (`c9739b8`, manifest `.aaw/manifest.yml`).
 - Bug-fix records use stable IDs in `dev/bug-fixes/done/B-000X-*.md`: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
 - Local toolchain: opencode v2.0.21; VS Code 1.125+ (see `dev/verification.md` for prerequisites).
@@ -91,4 +91,4 @@ No README change required by this snapshot rewrite (workflow bookkeeping only). 
 
 ## Resume Instruction
 
-Read this snapshot first, then the current task file. Do not load all historical task/bug records merely to get oriented. Next: start T-0027 when the user asks.
+Read this snapshot first, then the current task file. Do not load all historical task/bug records merely to get oriented. Next: start T-0028 when the user asks.

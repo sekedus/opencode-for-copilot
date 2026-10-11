@@ -45,6 +45,10 @@
         "title": "OCT: Show Status"
       },
       {
+        "command": "oct.showSessions",
+        "title": "OCT: Show Sessions"
+      },
+      {
         "command": "oct.refreshModels",
         "title": "OCT: Refresh Models"
       },

@@ -11,7 +11,7 @@ ACTIVE — reflects the current bridge (text turns + tool bridge + approvals, op
 ```text
 User / Copilot Chat (GUI, picker, tools, permissions)
     ↓  vscode.LanguageModelChatProvider API (vendor `oct`)
-OCT extension (this repo — no own webview)
+OCT extension (this repo — one read-only webview: OCT Sessions table)
     ↓  REST + SSE `/api/*` (Basic `opencode:<pw>`)
 opencode v2 server, loopback (`opencode serve`)
     ↓  plugin hooks + callbacks
@@ -24,7 +24,7 @@ The bridge owns server lifecycle, model listing, and chat mapping. History lives
 
 ### Extension host glue (`src/extension.ts`, `src/config.ts`, `src/binary.ts`, `src/output.ts`)
 
-Owns: activation gate (`oct.enabled`, default off), commands (`enable/disable/status/refreshModels/cleanupOrphans`), startup wiring (shuttle → server → provider registration), status/prune display.
+Owns: activation gate (`oct.enabled`, default off), commands (`enable/disable/status/showSessions/refreshModels/cleanupOrphans`), startup wiring (shuttle → server → provider registration), status/prune display, sessions table webview (`oct.showSessions`: scripts enabled for a nonce-bound folder-open delegate only, `open-folder` → OS file manager).
 Does not own: turn logic, session map internals, SSE parsing.
 
 ### Provider layer (`src/provider/`)
@@ -49,7 +49,8 @@ Owns: registering per-turn Copilot tools as engine tools (`oct__*`, `codemode:fa
 | Server manager | `src/server/manager.ts` | managed `opencode serve` spawn (free port, `server listening on` parse, `/api/info` poll, kill) vs external health-check; injects plugin + ask-all perms via `OPENCODE_CONFIG_CONTENT` | client, output | extension |
 | REST client | `src/server/client.ts` | `requestJson` + session/model/permission/prompt endpoints; auth header; 404-typed errors | — | manager, provider, extension |
 | Chat provider | `src/provider/octProvider.ts` | turn routing: key → session → new-turn vs tool-continuation vs stuck/supersede; model pin + variant | sessions, streaming, tools, messages | extension |
-| Session map | `src/provider/sessions.ts` | conversation-key → session-id map, cap `oct.maxSessions`/`200` per workspace directory group (`unknown` own group, dead-first in-group, T-0025), dead/dropped/orphan records, per-chat directory + title helpers | client | provider, extension |
+| Session map | `src/provider/sessions.ts` | conversation-key → session-id map, cap `oct.maxSessions`/`200` per workspace directory group (`unknown` own group, dead-first in-group, T-0025), dead/dropped/orphan records, per-chat directory + title helpers, `sessionLastActivityMs` + `shortConversationKey` display helpers (T-0027) | client | provider, extension |
+| Session table | `src/provider/sessionTable.ts` | pure table shaping: `buildSessionTableGroups` (grouped/sorted like status) + `escapeHtml` + `createNonce` + `renderSessionsHtml` (4 columns, folder links, wrap/scroll CSS, nonce-bound click delegate); panel + `open-folder` handler owned by `extension.ts` (`oct.showSessions`) | sessions | extension |
 | Turn streaming | `src/provider/streaming.ts` | SSE first (`GET /api/event`) then `POST prompt`; deltas → `LanguageModelTextPart`; tool-pause vs terminal events; approval inline | client, permissions, tools | provider |
 | Tool shuttle | `src/provider/tools.ts` | loopback HTTP callback (`/oct/pending-tools`, `/oct/execute`), pending registry, blocked-executor table, repeat breaker | output, images | provider, plugin |
 | Permissions | `src/provider/permissions.ts` | `permission.asked` → Allow/Cancel vs Copilot global `chat.permissions.default`; `read` silent; default-deny; never sends `always` | client | streaming |

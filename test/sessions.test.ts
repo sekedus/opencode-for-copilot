@@ -17,6 +17,11 @@ import {
   groupSnapshotsByDirectory,
   modelKeyFor,
   sessionCreatedMs,
+  sessionLastActivityMs,
+  shortConversationKey,
+  formatDateTime,
+  formatLastChat,
+  formatRelativeAge,
   formatSessionAge,
   DEFAULT_MAX_SESSIONS,
   DEFAULT_SESSION_TITLE,
@@ -27,6 +32,7 @@ import {
   resolveChatDirectory,
 } from "../src/provider/sessions";
 import { OctHttpError } from "../src/server/client";
+import { buildSessionTableGroups, createNonce, escapeHtml, renderSessionsHtml } from "../src/provider/sessionTable";
 import { DEFAULT_MAX_SESSIONS as CONFIG_DEFAULT_MAX_SESSIONS } from "../src/config";
 import { OctChatProvider } from "../src/provider/octProvider";
 import { ToolShuttle } from "../src/provider/tools";
@@ -586,6 +592,52 @@ describe("sessionCreatedMs + formatSessionAge (T-0017)", () => {
     assert.equal(formatSessionAge(now - 21 * 86_400_000, now), "3w");
     assert.equal(formatSessionAge(undefined, now), undefined);
     assert.equal(formatSessionAge(now + 60_000, now), undefined);
+  });
+});
+
+describe("formatDateTime + formatRelativeAge + formatLastChat (T-0027 v3)", () => {
+  const now = 1_000_000_000_000;
+
+  it("formats a zero-padded local yyyy-mm-dd hh:mm:ss", () => {
+    const d = new Date(now - 60_000);
+    const pad = (n: number): string => String(n).padStart(2, "0");
+    const expected =
+      `${String(d.getFullYear())}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+      `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    assert.equal(formatDateTime(now - 60_000), expected);
+    assert.match(formatDateTime(now) ?? "", /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+
+  it("rejects garbage timestamps", () => {
+    assert.equal(formatDateTime(undefined), undefined);
+    assert.equal(formatDateTime(-5), undefined);
+    assert.equal(formatDateTime(Number.NaN), undefined);
+  });
+
+  it("phrases every unit with singular/plural agreement", () => {
+    assert.equal(formatRelativeAge(now - 1_000, now), "1 second ago");
+    assert.equal(formatRelativeAge(now - 30_000, now), "30 seconds ago");
+    assert.equal(formatRelativeAge(now - 60_000, now), "1 minute ago");
+    assert.equal(formatRelativeAge(now - 12 * 60_000, now), "12 minutes ago");
+    assert.equal(formatRelativeAge(now - 3_600_000, now), "1 hour ago");
+    assert.equal(formatRelativeAge(now - 5 * 3_600_000, now), "5 hours ago");
+    assert.equal(formatRelativeAge(now - 86_400_000, now), "24 hours ago");
+    assert.equal(formatRelativeAge(now - 3 * 86_400_000, now), "3 days ago");
+    assert.equal(formatRelativeAge(now - 45 * 86_400_000, now), "1 month ago");
+    assert.equal(formatRelativeAge(now - 200 * 86_400_000, now), "6 months ago");
+    assert.equal(formatRelativeAge(now - 400 * 86_400_000, now), "1 year ago");
+  });
+
+  it("yields undefined when missing or in the future", () => {
+    assert.equal(formatRelativeAge(undefined, now), undefined);
+    assert.equal(formatRelativeAge(now + 60_000, now), undefined);
+  });
+
+  it("combines absolute and relative parts", () => {
+    const out = formatLastChat(now - 60_000, now) ?? "";
+    assert.match(out, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(1 minute ago\)$/);
+    assert.equal(formatLastChat(undefined, now), undefined);
+    assert.equal(formatLastChat(now + 60_000, now), undefined);
   });
 });
 
@@ -1384,5 +1436,214 @@ describe("per-workspace cap at restore time (T-0025)", () => {
     assert.equal(map.peek("conv:u3"), undefined, "third unknown drops");
     assert.equal(map.peek("conv:a1"), "ses_a1", "directory group unaffected by unknown overflow");
     assert.equal(map.isDropped("conv:u3"), true);
+  });
+});
+
+describe("sessionLastActivityMs (T-0027)", () => {
+  it("prefers time.updated over time.created", () => {
+    assert.equal(
+      sessionLastActivityMs({ time: { created: 1000, updated: 2000 } }),
+      2000,
+    );
+  });
+
+  it("falls back to created when updated is missing", () => {
+    assert.equal(sessionLastActivityMs({ time: { created: 1500 } }), 1500);
+    assert.equal(sessionLastActivityMs({ time: { created: 1500, updated: 0 } }), 1500);
+  });
+
+  it("tolerates ISO strings on either field", () => {
+    const created = Date.parse("2026-10-05T10:00:00.000Z");
+    const updated = Date.parse("2026-10-06T10:00:00.000Z");
+    assert.equal(
+      sessionLastActivityMs({ time: { created: "2026-10-05T10:00:00.000Z", updated: "2026-10-06T10:00:00.000Z" } }),
+      updated,
+    );
+    assert.equal(sessionLastActivityMs({ time: { created: "2026-10-05T10:00:00.000Z" } }), created);
+  });
+
+  it("yields undefined on garbage (age unknown)", () => {
+    assert.equal(sessionLastActivityMs({ time: {} }), undefined);
+    assert.equal(sessionLastActivityMs({}), undefined);
+    assert.equal(sessionLastActivityMs(null), undefined);
+    assert.equal(sessionLastActivityMs({ time: { created: -5, updated: "nope" } }), undefined);
+  });
+});
+
+describe("shortConversationKey (T-0027)", () => {
+  it("truncates long ids to 12 chars with an ellipsis", () => {
+    assert.equal(shortConversationKey("conv:4506f33d-553a-xxxx"), "conv:4506f33d-553…");
+    assert.equal(shortConversationKey("hash:abcdef0123456789abcdef"), "hash:abcdef012345…");
+  });
+
+  it("keeps short keys verbatim", () => {
+    assert.equal(shortConversationKey("conv:abc"), "conv:abc");
+    assert.equal(shortConversationKey("conv:123456789012"), "conv:123456789012");
+  });
+
+  it("returns colon-free input unchanged", () => {
+    assert.equal(shortConversationKey("plain"), "plain");
+  });
+});
+
+describe("escapeHtml (T-0027)", () => {
+  it("escapes markup-significant chars", () => {
+    assert.equal(
+      escapeHtml('<b>"a"&\'b\'>'),
+      "&lt;b&gt;&quot;a&quot;&amp;&#39;b&#39;&gt;",
+    );
+  });
+
+  it("coerces missing values to empty", () => {
+    assert.equal(escapeHtml(undefined), "");
+    assert.equal(escapeHtml(null), "");
+    assert.equal(escapeHtml(42), "42");
+  });
+});
+
+describe("buildSessionTableGroups (T-0027)", () => {
+  const now = 1_000_000_000_000;
+
+  it("shapes rows with the 4 columns and groups unknown last", () => {
+    const mapped = [
+      { key: "conv:1", sessionId: "ses_1", modelKey: "m", directory: "D:\\b" },
+      { key: "conv:2", sessionId: "ses_2", modelKey: "m" },
+      { key: "conv:3", sessionId: "ses_3", modelKey: "m", directory: "D:\\a" },
+    ];
+    const infoById = new Map<string, unknown>([
+      ["ses_1", { id: "ses_1", title: "first", time: { created: now - 3_600_000, updated: now - 60_000 } }],
+      ["ses_2", { id: "ses_2", title: "second", time: { created: now - 86_400_000 } }],
+      ["ses_3", { id: "ses_3", title: "", time: {} }],
+    ]);
+    const groups = buildSessionTableGroups(mapped, infoById, now);
+    assert.deepEqual(groups.map((g) => g.directory), ["D:\\a", "D:\\b", UNKNOWN_DIRECTORY_GROUP]);
+    const byId = new Map(groups.flatMap((g) => g.entries).map((r) => [r.sessionId, r]));
+    assert.equal(byId.get("ses_1")?.copilotId, "conv:1");
+    assert.equal(byId.get("ses_1")?.group, "D:\\b");
+    assert.equal(byId.get("ses_1")?.title, "first");
+    assert.match(byId.get("ses_1")?.lastChat ?? "", /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(1 minute ago\)$/, "updated drives last chat");
+    assert.match(byId.get("ses_2")?.lastChat ?? "", /\(24 hours ago\)$/, "created fallback when updated is missing");
+    assert.equal(byId.get("ses_3")?.lastChat, undefined, "garbage times stay age-unknown");
+    assert.equal(byId.get("ses_3")?.title, "(title unavailable)", "empty title falls back");
+  });
+
+  it("keeps unlisted sessions as age-unknown rows (never drops)", () => {
+    const mapped = [{ key: "conv:ghost", sessionId: "ses_ghost", modelKey: "m" }];
+    const groups = buildSessionTableGroups(mapped, new Map(), now);
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].directory, UNKNOWN_DIRECTORY_GROUP);
+    assert.equal(groups[0].entries.length, 1);
+    assert.equal(groups[0].entries[0].lastChat, undefined);
+    assert.equal(groups[0].entries[0].title, "(title unavailable)");
+  });
+
+  it("keeps map order within a group", () => {
+    const mapped = [
+      { key: "conv:a", sessionId: "ses_a", modelKey: "m", directory: "D:\\w" },
+      { key: "conv:b", sessionId: "ses_b", modelKey: "m", directory: "D:\\w" },
+    ];
+    const groups = buildSessionTableGroups(mapped, new Map(), now);
+    assert.deepEqual(groups[0].entries.map((e) => e.key), ["conv:a", "conv:b"]);
+  });
+});
+
+describe("createNonce (T-0027)", () => {
+  it("yields 32 alphanumeric chars", () => {
+    for (let i = 0; i < 5; i++) {
+      assert.match(createNonce(), /^[A-Za-z0-9]{32}$/);
+    }
+  });
+});
+
+describe("renderSessionsHtml (T-0027 v2)", () => {
+  const renderNow = 1_000_000_000_000;
+  const renderMapped = [
+    { key: "conv:4506f33d-553a-aaaa-bbbb-cccccccccccc", sessionId: "ses_aaa", modelKey: "m", directory: "D:\\w" },
+    { key: "conv:u1", sessionId: "ses_u1", modelKey: "m" },
+  ];
+  const renderInfoById = new Map<string, unknown>([
+    ["ses_aaa", { id: "ses_aaa", title: "first chat", time: { created: renderNow - 60_000, updated: renderNow - 60_000 } }],
+    ["ses_u1", { id: "ses_u1", title: "lone chat", time: { created: renderNow - 3_600_000 } }],
+  ]);
+  const renderHtml = (nonce = "n0nce0123456789n0nce0123456789ab"): string =>
+    renderSessionsHtml(buildSessionTableGroups(renderMapped, renderInfoById, renderNow), renderMapped.length, 0, nonce);
+
+  it("renders 4 columns with no Group column", () => {
+    const out = renderHtml();
+    assert.ok(out.includes("<th>Last chat</th>"), "last chat header");
+    assert.ok(out.includes("<th>Copilot chat</th>"), "copilot header");
+    assert.ok(out.includes("<th>Opencode session</th>"), "opencode header");
+    assert.ok(out.includes("<th>Opencode title</th>"), "title header");
+    assert.ok(!out.includes("<th>Group</th>"), "group column removed");
+  });
+
+  it("shows full ids as plain selectable text", () => {
+    const out = renderHtml();
+    assert.ok(
+      out.includes('<td class="col-copilot selectable">conv:4506f33d-553a-aaaa-bbbb-cccccccccccc</td>'),
+      "full copilot key, untruncated",
+    );
+    assert.ok(out.includes('<td class="col-opencode selectable">ses_aaa</td>'), "full opencode id");
+    assert.ok(out.includes('<td class="col-title selectable">first chat</td>'), "title plain, no folder link");
+    assert.ok(!out.includes("user-select:all"), "single click no longer force-selects");
+    assert.ok(out.includes('"dblclick"'), "double-click delegate present");
+    assert.ok(out.includes("selectNodeContents"), "double-click selects the whole cell value");
+  });
+
+  it("shows full timestamps with verbose relative ages", () => {
+    const out = renderHtml();
+    assert.match(out, /<td class="col-last">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(1 minute ago\)<\/td>/);
+    assert.match(out, /<td class="col-last">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \(1 hour ago\)<\/td>/);
+  });
+
+  it("links the group header to open the folder (titles stay plain)", () => {
+    const out = renderHtml();
+    assert.ok(
+      out.includes('data-folder="D:\\w"'),
+      "group header links the workspace folder",
+    );
+    assert.ok(
+      out.includes("<h2>unknown — 1 conversation(s)</h2>"),
+      "unknown group header is plain text (no folder to open)",
+    );
+    assert.ok(
+      out.includes('<td class="col-title selectable">lone chat</td>'),
+      "unknown group title cell is plain text",
+    );
+  });
+
+  it("escapes hostile titles and paths", () => {
+    const evil = buildSessionTableGroups(
+      [{ key: "conv:e", sessionId: "ses_e", modelKey: "m", directory: 'D:\\w"><script>alert(1)</script>' }],
+      new Map([["ses_e", { id: "ses_e", title: "<img src=x onerror=alert(1)>", time: { created: renderNow } }]]),
+      renderNow,
+    );
+    const out = renderSessionsHtml(evil, 1, 0, "n0nce0123456789n0nce0123456789ab");
+    assert.ok(!out.includes("<img src=x"), "raw title markup never renders");
+    assert.ok(out.includes("&lt;img src=x"), "title escaped");
+    assert.ok(!out.includes("<script>alert"), "raw path script never renders");
+    assert.ok(!out.includes('data-folder="D:\\w">'), "raw path never lands in the attribute");
+  });
+
+  it("binds the click script to the CSP nonce", () => {
+    const nonce = "n0nce0123456789n0nce0123456789ab";
+    const out = renderHtml(nonce);
+    assert.ok(out.includes(`script-src 'nonce-${nonce}'`), "CSP allows only the nonce");
+    assert.ok(out.includes(`<script nonce="${nonce}">`), "script carries the nonce");
+    assert.ok(out.includes("open-folder"), "click delegate posts open-folder");
+  });
+
+  it("wraps cells with min-widths inside scrolling wrappers", () => {
+    const out = renderHtml();
+    assert.ok(out.includes('class="table-wrap"'), "scroll wrapper per table");
+    assert.ok(out.includes("overflow:auto"), "x/y scroll when cramped");
+    assert.ok(out.includes("overflow-wrap:anywhere"), "long ids wrap");
+    assert.ok(out.includes("min-width:940px"), "table min-width forces x-scroll, not squish");
+  });
+
+  it("renders the empty state without tables", () => {
+    const out = renderSessionsHtml([], 0, 0, "n0nce0123456789n0nce0123456789ab");
+    assert.ok(out.includes("No mapped conversations yet"), "empty note");
+    assert.ok(!out.includes("<table>"), "no table when empty");
   });
 });

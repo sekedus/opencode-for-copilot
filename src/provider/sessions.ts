@@ -366,6 +366,24 @@ export function resolveChatDirectory(hints: ResolveChatDirectoryHints): string |
 }
 
 /**
+ * Coerce one engine timestamp field to millis (T-0027, pure): finite
+ * positive numbers pass through floored; ISO-string dates parse; anything
+ * else yields undefined (caller prints "age unknown").
+ */
+function sessionTimeMs(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Extract the engine session creation millis from a `listSessions` item
  * (T-0017). Live shape (opencode v2.0.21, verified 2026-10-05):
  * `time: { created: <millis>, updated: <millis>, idle?: <millis> }`.
@@ -379,17 +397,39 @@ export function sessionCreatedMs(info: unknown): number | undefined {
   if (typeof time !== "object" || time === null) {
     return undefined;
   }
-  const created = (time as Record<string, unknown>)["created"];
-  if (typeof created === "number" && Number.isFinite(created) && created > 0) {
-    return Math.floor(created);
+  return sessionTimeMs((time as Record<string, unknown>)["created"]);
+}
+
+/**
+ * Last engine activity millis for a `listSessions` item (T-0027, pure):
+ * `time.updated ?? time.created` (each coerced like `sessionCreatedMs`).
+ * The table's "last chat" column uses this; undefined means age unknown.
+ */
+export function sessionLastActivityMs(info: unknown): number | undefined {
+  if (typeof info !== "object" || info === null) {
+    return undefined;
   }
-  if (typeof created === "string" && created.trim()) {
-    const parsed = Date.parse(created);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
+  const time = (info as Record<string, unknown>)["time"];
+  if (typeof time !== "object" || time === null) {
+    return undefined;
   }
-  return undefined;
+  const fields = time as Record<string, unknown>;
+  return sessionTimeMs(fields["updated"]) ?? sessionTimeMs(fields["created"]);
+}
+
+/**
+ * Shorten a conversation key for display (T-0027, pure):
+ * `conv:<id>` / `hash:<hex>` keep the prefix plus the first 12 id chars.
+ * Shared by the status list and the sessions table.
+ */
+export function shortConversationKey(key: string): string {
+  const idx = key.indexOf(":");
+  if (idx < 0) {
+    return key;
+  }
+  const prefix = key.slice(0, idx);
+  const rest = key.slice(idx + 1);
+  return rest.length > 12 ? `${prefix}:${rest.slice(0, 12)}…` : key;
 }
 
 /**
@@ -438,6 +478,71 @@ function hashKey(parts: string[]): string {
 
 export const DEFAULT_SESSION_TITLE = "OCT Copilot chat";
 export const MAX_SESSION_TITLE_LENGTH = 60;
+
+/** Zero-pad a date/time field to 2 digits (local time). */
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Full local timestamp `yyyy-mm-dd hh:mm:ss` (T-0027 v3, pure): the table's
+ * "last chat" absolute part. Returns undefined for garbage input.
+ */
+export function formatDateTime(valueMs: unknown): string | undefined {
+  if (typeof valueMs !== "number" || !Number.isFinite(valueMs) || valueMs <= 0) {
+    return undefined;
+  }
+  const d = new Date(valueMs);
+  return `${String(d.getFullYear())}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ` +
+    `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+/**
+ * Verbose relative age (T-0027 v3, pure): `N seconds/minutes/hours/days/
+ * months/years ago` with singular/plural agreement. Undefined when the
+ * timestamp is missing or in the future (caller prints "age unknown").
+ */
+export function formatRelativeAge(valueMs: unknown, nowMs: number = Date.now()): string | undefined {
+  if (typeof valueMs !== "number" || !Number.isFinite(valueMs) || valueMs <= 0) {
+    return undefined;
+  }
+  const diffMs = nowMs - valueMs;
+  if (diffMs < 0) {
+    return undefined;
+  }
+  const unit = (n: number, word: string): string => `${String(n)} ${word}${n === 1 ? "" : "s"} ago`;
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) {
+    return unit(seconds, "second");
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return unit(minutes, "minute");
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) {
+    return unit(hours, "hour");
+  }
+  const days = Math.floor(hours / 24);
+  if (days < 30) {
+    return unit(days, "day");
+  }
+  const months = Math.floor(days / 30);
+  if (months < 12) {
+    return unit(months, "month");
+  }
+  return unit(Math.floor(days / 365), "year");
+}
+
+/**
+ * Table "last chat" cell text (T-0027 v3, pure):
+ * `yyyy-mm-dd hh:mm:ss (N units ago)`. Undefined means age unknown.
+ */
+export function formatLastChat(valueMs: unknown, nowMs: number = Date.now()): string | undefined {
+  const absolute = formatDateTime(valueMs);
+  const relative = formatRelativeAge(valueMs, nowMs);
+  return absolute === undefined || relative === undefined ? undefined : `${absolute} (${relative})`;
+}
 
 /** `MM-DD HH:mm` stamp (local time) for fallback titles. */
 function formatTitleStamp(now: Date): string {

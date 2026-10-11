@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import {
+  getSession,
   interruptSession,
   listSessionMessages,
   octAuthHeaders,
@@ -12,6 +13,7 @@ import { logLine } from "../output";
 import { parsePermissionAsked, type PermissionTranslator } from "./permissions";
 import { isSessionGoneError } from "./sessions";
 import { type BlockedCall, type ToolShuttle } from "./tools";
+import { createUsageDataParts, snapshotFromSessionInfo } from "./usage";
 
 /**
  * Text streaming for one chat turn (opencode v2) with tool-bridge support.
@@ -266,6 +268,26 @@ export async function streamTurn(
       progress.report(new vscode.LanguageModelTextPart("\n\n"));
     }
   };
+  /**
+   * Report post-turn session usage for Copilot's Session Info popup
+   * (T-0028, best-effort): `GET /api/session/:id` → tokens → one
+   * `usage`-mime DataPart. Never fails the turn — a stats miss only logs.
+   * Skips silently when the session reports no usage yet.
+   */
+  const emitUsage = async (): Promise<void> => {
+    try {
+      const info = await getSession(baseUrl, password, sessionId, 5000);
+      const parts = createUsageDataParts(snapshotFromSessionInfo(info));
+      for (const part of parts) {
+        progress.report(part);
+      }
+      if (parts.length > 0) {
+        logLine(`Turn on ${sessionId} reported usage to Session Info.`);
+      }
+    } catch (error) {
+      logLine(`Session usage fetch failed for ${sessionId} (turn text unaffected): ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
   /** Emit ToolCallParts and pause the provider call; executors stay blocked. */
   const pauseForTools = async (calls: BlockedCall[]): Promise<TurnOutcome> => {
     await promptPromise;
@@ -449,6 +471,7 @@ export async function streamTurn(
         progress.report(new vscode.LanguageModelTextPart(notice));
         streamed = notice;
         logLine(`Turn on ${sessionId} ended after a denial; reported cleanly instead of throwing.`);
+        await emitUsage();
         return { kind: "done" };
       }
       throw new Error(`OCT: ${turnError}`);
@@ -469,6 +492,7 @@ export async function streamTurn(
     if (turnError && streamed) {
       logLine(`Turn on ${sessionId} completed with a non-fatal error after streaming: ${turnError}`);
     }
+    await emitUsage();
     return { kind: "done" };
   } catch (error) {
     if (cancelRequested || timedOut || token.isCancellationRequested) {

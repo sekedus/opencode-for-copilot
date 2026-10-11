@@ -1568,12 +1568,13 @@ describe("renderSessionsHtml (T-0027 v2)", () => {
   const renderHtml = (nonce = "n0nce0123456789n0nce0123456789ab"): string =>
     renderSessionsHtml(buildSessionTableGroups(renderMapped, renderInfoById, renderNow), renderMapped.length, 0, nonce);
 
-  it("renders 4 columns with no Group column", () => {
+  it("renders 5 columns with no Group column", () => {
     const out = renderHtml();
     assert.ok(out.includes("<th>Last chat</th>"), "last chat header");
     assert.ok(out.includes("<th>Copilot chat</th>"), "copilot header");
     assert.ok(out.includes("<th>Opencode session</th>"), "opencode header");
     assert.ok(out.includes("<th>Opencode title</th>"), "title header");
+    assert.ok(out.includes("<th>Tokens</th>"), "tokens header (T-0028)");
     assert.ok(!out.includes("<th>Group</th>"), "group column removed");
   });
 
@@ -1638,7 +1639,8 @@ describe("renderSessionsHtml (T-0027 v2)", () => {
     assert.ok(out.includes('class="table-wrap"'), "scroll wrapper per table");
     assert.ok(out.includes("overflow:auto"), "x/y scroll when cramped");
     assert.ok(out.includes("overflow-wrap:anywhere"), "long ids wrap");
-    assert.ok(out.includes("min-width:940px"), "table min-width forces x-scroll, not squish");
+    assert.ok(out.includes("min-width:1160px"), "table min-width forces x-scroll, not squish");
+    assert.ok(out.includes("col-usage"), "tokens column has a min-width");
   });
 
   it("renders the empty state without tables", () => {

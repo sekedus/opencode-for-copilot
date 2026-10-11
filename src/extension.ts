@@ -4,7 +4,7 @@ import { checkOpencodeBinary } from "./binary";
 import { OCT_DISPLAY_NAME, OCT_VENDOR, readSettings, resolveServerPassword, setEnabled } from "./config";
 import { disposeOutputChannel, getOutputChannel, logLine } from "./output";
 import { OctChatProvider } from "./provider/octProvider";
-import { deleteSession, getSession, listSessions } from "./server/client";
+import { deleteSession, getSession, listModels, listSessions } from "./server/client";
 import { PermissionTranslator } from "./provider/permissions";
 import {
   canonicalDirectory,
@@ -17,6 +17,7 @@ import {
   shortConversationKey,
 } from "./provider/sessions";
 import { buildSessionTableGroups, createNonce, renderSessionsHtml } from "./provider/sessionTable";
+import { buildModelLimitMap, formatUsageCell, limitForSession, snapshotFromSessionInfo, type ModelLimit } from "./provider/usage";
 import { ToolShuttle } from "./provider/tools";
 import { OctServerManager } from "./server/manager";
 
@@ -175,11 +176,13 @@ async function verifyAndPruneConversations(): Promise<string[]> {
 /**
  * Append the conversation→session list to the status output. Dead entries
  * are pruned first via per-id verification; one engine `GET /api/session`
- * pass then supplies titles + creation times for display only (never for
- * prune decisions). Entries group by workspace directory (T-0017) with a
+ * pass then supplies titles + creation times + token usage for display only
+ * (never for prune decisions), and one `GET /api/model` pass supplies
+ * context/output limits. Entries group by workspace directory (T-0017) with a
  * per-entry age from the engine `time.created` millis field (verified live
  * 2026-10-05 against opencode v2.0.21); unmapped/missing times print
- * "age unknown".
+ * "age unknown". Usage (T-0028) renders `used / context (%) · out …`;
+ * unknown limits render `used (limit unknown)`, zero usage `no usage yet`.
  */
 async function appendSessionList(lines: string[]): Promise<void> {
   if (!chatProvider) {
@@ -203,6 +206,7 @@ async function appendSessionList(lines: string[]): Promise<void> {
   const { baseUrl, password } = chatProvider.serverTarget();
   const titles = new Map<string, string>();
   const created = new Map<string, number>();
+  const infoById = new Map<string, unknown>();
   try {
     const listed = await listSessions(baseUrl, password, { limit: 500 });
     for (const item of listed) {
@@ -211,9 +215,17 @@ async function appendSessionList(lines: string[]): Promise<void> {
       if (ms !== undefined) {
         created.set(item.id, ms);
       }
+      infoById.set(item.id, item);
     }
   } catch (error) {
     logLine(`Session title list failed (map unchanged): ${error instanceof Error ? error.message : String(error)}`);
+  }
+  let limits: ReadonlyMap<string, ModelLimit> = new Map();
+  try {
+    const models = await listModels(baseUrl, password, undefined, 10000);
+    limits = buildModelLimitMap(models.data);
+  } catch (error) {
+    logLine(`Session model list failed (usage limits unknown): ${error instanceof Error ? error.message : String(error)}`);
   }
   const nowMs = Date.now();
   lines.push(`sessions: ${String(mapped.length)} mapped conversation(s)${prunedKeys.length > 0 ? `, ${String(prunedKeys.length)} missing — pruned` : ""}`);
@@ -222,21 +234,26 @@ async function appendSessionList(lines: string[]): Promise<void> {
     for (const entry of group.entries) {
       const title = titles.get(entry.sessionId) ?? "(title unavailable)";
       const age = formatSessionAge(created.get(entry.sessionId), nowMs);
+      const usage = formatUsageCell(
+        snapshotFromSessionInfo(infoById.get(entry.sessionId)),
+        limitForSession(limits, infoById.get(entry.sessionId), entry.modelKey),
+      );
       lines.push(
-        `    ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title}" (found, ${age === undefined ? "age unknown" : `${age} old`})`,
+        `    ${shortConversationKey(entry.key)} -> ${entry.sessionId} [${entry.modelKey}] "${title}" (found, ${age === undefined ? "age unknown" : `${age} old`}) · ${usage}`,
       );
     }
   }
 }
 
 /**
- * Session map table (T-0027, read-only webview).
+ * Session map table (T-0027, read-only webview; T-0028 adds the Tokens column).
  *
  * Same data pass as the status list: prune dead mappings first via per-id
  * verification, then one engine `GET /api/session` (limit 500) for titles +
- * last-activity times (display only, never a prune signal). Rows group by
+ * last-activity times + token usage plus one `GET /api/model` for limits
+ * (all display only, never a prune signal). Rows group by
  * workspace directory with `unknown` last. No actions, no deletes — cleanup
- * stays `oct.cleanupOrphans`; stats stay T-0028.
+ * stays `oct.cleanupOrphans`.
  */
 async function showSessionsCommand(): Promise<void> {
   if (!chatProvider) {
@@ -259,7 +276,14 @@ async function showSessionsCommand(): Promise<void> {
   } catch (error) {
     logLine(`Session table list failed (map unchanged): ${error instanceof Error ? error.message : String(error)}`);
   }
-  const groups = buildSessionTableGroups(mapped, infoById, Date.now());
+  let limits: ReadonlyMap<string, ModelLimit> = new Map();
+  try {
+    const models = await listModels(baseUrl, password, undefined, 10000);
+    limits = buildModelLimitMap(models.data);
+  } catch (error) {
+    logLine(`Session table model list failed (usage limits unknown): ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const groups = buildSessionTableGroups(mapped, infoById, Date.now(), limits);
   const html = renderSessionsHtml(groups, mapped.length, prunedKeys.length, createNonce());
   if (sessionsPanel) {
     sessionsPanel.reveal(vscode.ViewColumn.One, false);

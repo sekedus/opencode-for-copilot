@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
 import { logLine } from "../output";
 import { isImageMime, type ToolFilePart } from "./images";
+import { isUsageDataPart } from "./usage";
 
 function randomToken(): string {
   return randomBytes(32).toString("base64url");
@@ -121,6 +122,10 @@ export function toolResultToText(content: readonly unknown[]): string {
       continue;
     }
     if (part instanceof vscode.LanguageModelDataPart) {
+      // Usage feed (T-0028): accounting, never tool-result text.
+      if (isUsageDataPart(part)) {
+        continue;
+      }
       const mime = typeof part.mimeType === "string" ? part.mimeType : "unknown";
       const bytes = typeof part.data?.byteLength === "number" ? part.data.byteLength : 0;
       if (isImageMime(mime) && bytes > 0) {

@@ -12,6 +12,7 @@ import {
   type PromptFileAttachment,
   type ToolFilePart,
 } from "./images";
+import { isUsageDataPart } from "./usage";
 import { MAX_RESULT_CHARS, toolResultToText } from "./tools";
 
 /**
@@ -44,6 +45,12 @@ export function partText(part: unknown): string {
     return inner ? `[Tool result ${part.callId}:\n${inner}]` : `[Tool result ${part.callId}: (empty)]`;
   }
   if (part instanceof vscode.LanguageModelDataPart) {
+    // Usage feed (T-0028): our own `usage`-mime parts echo back in history —
+    // they are accounting, never prompt text. Drop them silently instead of
+    // rendering an attachment placeholder into the engine prompt.
+    if (isUsageDataPart(part)) {
+      return "";
+    }
     const image = dataPartImage(part);
     if (image) {
       return `[Image: ${image.mimeType} (${image.data.byteLength} bytes)]`;
@@ -119,6 +126,11 @@ export function extractToolResults(messages: readonly vscode.LanguageModelChatRe
         const images: ImageBytes[] = [];
         for (const inner of part.content) {
           if (inner instanceof vscode.LanguageModelDataPart) {
+            // Usage feed never rides tool results, but drop it silently if it
+            // ever appears (T-0028) instead of placeholder noise in the text.
+            if (isUsageDataPart(inner)) {
+              continue;
+            }
             const image = dataPartImage(inner);
             if (image) {
               images.push(image);

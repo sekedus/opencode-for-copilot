@@ -128,9 +128,33 @@ export async function listModels(
   return raw;
 }
 
+export interface SessionTokenCache {
+  read: number;
+  write: number;
+}
+
+export interface SessionTokens {
+  input: number;
+  output: number;
+  reasoning: number;
+  cache: SessionTokenCache;
+}
+
+export interface SessionModelRef {
+  id: string;
+  providerID: string;
+  variant?: string;
+}
+
 export interface SessionInfo {
   id: string;
   title?: string;
+  /** Cumulative engine token accounting (`TokenUsage.Info`); absent on older servers. */
+  tokens?: unknown;
+  /** Model coordinates serving the session (`Model.Ref`); absent when unset. */
+  model?: unknown;
+  /** Engine timestamps (`time.created/updated/idle`); display-only. */
+  time?: unknown;
   [key: string]: unknown;
 }
 
@@ -407,4 +431,72 @@ export async function replySessionPermission(
     }
     throw error;
   }
+}
+
+/** Coerce an engine token counter to a safe non-negative integer (garbage → 0). */
+function tokenCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 0;
+  }
+  return Math.floor(value);
+}
+
+/**
+ * Parse cumulative engine token accounting from a `Session.Info` value
+ * (T-0028, pure): `tokens {input, output, reasoning, cache {read, write}}`
+ * per `@opencode/schema/token-usage`. Tolerant — missing/malformed fields
+ * yield 0, never a throw — so status/table/usage callers degrade to
+ * "no usage yet" instead of failing the turn.
+ */
+export function parseSessionTokens(info: unknown): SessionTokens {
+  if (typeof info !== "object" || info === null) {
+    return { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } };
+  }
+  const tokens = (info as Record<string, unknown>)["tokens"];
+  if (typeof tokens !== "object" || tokens === null) {
+    return { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } };
+  }
+  const record = tokens as Record<string, unknown>;
+  const cache = record["cache"];
+  const cacheRecord = typeof cache === "object" && cache !== null ? (cache as Record<string, unknown>) : {};
+  return {
+    input: tokenCount(record["input"]),
+    output: tokenCount(record["output"]),
+    reasoning: tokenCount(record["reasoning"]),
+    cache: {
+      read: tokenCount(cacheRecord["read"]),
+      write: tokenCount(cacheRecord["write"]),
+    },
+  };
+}
+
+/** Sum all engine token fields (matches `TokenUsage.total` server-side). */
+export function sessionTokensTotal(tokens: SessionTokens): number {
+  return tokens.input + tokens.output + tokens.reasoning + tokens.cache.read + tokens.cache.write;
+}
+
+/**
+ * Parse the serving model coordinates from a `Session.Info` value
+ * (T-0028, pure): `model {id, providerID, variant?}` per `Model.Ref`.
+ * Returns undefined when absent/malformed (caller falls back to the map's
+ * modelKey or reports limits unknown).
+ */
+export function sessionModelRef(info: unknown): SessionModelRef | undefined {
+  if (typeof info !== "object" || info === null) {
+    return undefined;
+  }
+  const model = (info as Record<string, unknown>)["model"];
+  if (typeof model !== "object" || model === null) {
+    return undefined;
+  }
+  const record = model as Record<string, unknown>;
+  const id = record["id"];
+  const providerID = record["providerID"];
+  if (typeof id !== "string" || !id || typeof providerID !== "string" || !providerID) {
+    return undefined;
+  }
+  const variant = record["variant"];
+  return typeof variant === "string" && variant
+    ? { id, providerID, variant }
+    : { id, providerID };
 }

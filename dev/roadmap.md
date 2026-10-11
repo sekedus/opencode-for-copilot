@@ -36,7 +36,7 @@ M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap,
 - `T-0025` — Per-workspace session cap — VERIFIED (2026-10-10: `lint` + `test` 159/159 + `compile` green + owner EDH PASS: 2+2 per-group, A3 evicts A1 only, reload stable).
 - `T-0026` — Cleanup retired engine sessions — CANCELLED (2026-10-10, owner decision after goal review; graveyard-only cleanup scope kept).
 - `T-0027` — Session map table (webview) — VERIFIED (2026-10-11: `oct.showSessions` grouped table + `lint`/`test` 185/185 + `compile` green + owner EDH PASS).
-- `T-0028` — Session stats (usage DataPart + status) — PLANNED (M5: Session Info feed).
+- `T-0028` — Session stats (usage DataPart + status) — VERIFIED (2026-10-11: `lint`/`test` 203/203 + `compile` green + owner EDH PASS).
 - `T-0029` — Human-readable README — PLANNED (M5).
 - `T-0030` — Model-switch regression (exist/dropped/deleted) — PLANNED (M5 test).
 

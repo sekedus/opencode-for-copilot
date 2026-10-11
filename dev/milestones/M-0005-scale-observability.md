@@ -28,7 +28,7 @@ Make the 1:1 conversation→session map observable and bounded per workspace, fe
 - [ ] `typescript@6.0.3`, `npm run lint` + `npm test` green
 - [ ] Cap enforced per directory group; status/table shows per-group counts
 - [ ] `oct.showSessions` table shows last chat, copilot id, opencode id, group
-- [ ] Turns emit `usage` DataPart; core Session Info shows non-zero context; status mirrors used/context/output
+- [x] Turns emit `usage` DataPart; core Session Info shows non-zero context; status mirrors used/context/output
 - [ ] ~~`cleanupOrphans` deletes graveyard + dead/dropped engine sessions (404-checked, confirmed)~~ DROPPED with T-0026 (cancelled 2026-10-10; graveyard-only scope kept)
 - [ ] README rewritten for human setup/usage; model-switch behavior tested
 
@@ -38,7 +38,7 @@ Make the 1:1 conversation→session map observable and bounded per workspace, fe
 - [x] T-0025 — Per-workspace session cap
 - [ ] ~~T-0026 — Cleanup retired engine sessions~~ CANCELLED 2026-10-10 (owner decision; graveyard-only cleanup kept)
 - [x] T-0027 — Session map table (webview)
-- [ ] T-0028 — Session stats (usage DataPart + status)
+- [x] T-0028 — Session stats (usage DataPart + status)
 - [ ] T-0029 — Human-readable README
 - [ ] T-0030 — Model-switch regression (exist/dropped/deleted)
 

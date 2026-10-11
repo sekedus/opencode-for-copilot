@@ -39,7 +39,7 @@ Make the 1:1 conversation→session map observable and bounded per workspace, fe
 - [ ] ~~T-0026 — Cleanup retired engine sessions~~ CANCELLED 2026-10-10 (owner decision; graveyard-only cleanup kept)
 - [x] T-0027 — Session map table (webview)
 - [x] T-0028 — Session stats (usage DataPart + status)
-- [ ] T-0029 — Human-readable README
+- [x] T-0029 — Human-readable README
 - [ ] T-0030 — Model-switch regression (exist/dropped/deleted)
 
 ## Related Parking-Lot Ideas

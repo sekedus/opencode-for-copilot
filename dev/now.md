@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (M5: T-0024/T-0025/T-0027/T-0028 VERIFIED + T-0026 CANCELLED in `dev/tasks/done/`; T-0029/T-0030 PLANNED in `dev/tasks/`; current task T-0029 matches roadmap)
+CONSISTENT (M5: T-0024/T-0025/T-0027/T-0028/T-0029 VERIFIED + T-0026 CANCELLED in `dev/tasks/done/`; T-0030 PLANNED in `dev/tasks/`; no active task)
 
 ## Current Milestone
 
-M5 — IN_PROGRESS (2026-10-10): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). T-0024/T-0025/T-0027/T-0028 VERIFIED; T-0026 CANCELLED; T-0029/T-0030 open.
+M5 — IN_PROGRESS (2026-10-10): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). T-0024/T-0025/T-0027/T-0028/T-0029 VERIFIED; T-0026 CANCELLED; T-0030 open.
 
 ## Current Task
 
-T-0029 — Human-readable README (PLANNED, next).
+None (T-0029 VERIFIED 2026-10-11; T-0030 PLANNED, next — start when the user asks).
 
 ## Current Step
 
-T-0028 VERIFIED 2026-10-11 (usage DataPart + status/table mirror, `lint` + `test` 203/203 + `compile` green + owner EDH PASS incl. the 192K denominator re-check). Moved to `dev/tasks/done/`. Next: start T-0029 when the user asks.
+T-0029 VERIFIED 2026-10-11 (human README rewrite, owner read-through PASS). Moved to `dev/tasks/done/`. Next: commit checkpoint, then T-0030 when the user asks.
 
 ## Objective
 
@@ -36,11 +36,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_T-0028_VERIFIED
+STATE_T-0029_VERIFIED
 
 ## Next Action
 
-T-0029 is next (PLANNED). Start it when the user asks.
+Commit the T-0029 checkpoint (owner said "verified & commit"). T-0030 is next (PLANNED) — start when the user asks.
 
 ## Current Blocker
 
@@ -72,11 +72,11 @@ See `dev/commit-policy.md`.
 
 ## Last Commit
 
-`062e855 feat: session map table webview (T-0027)`. Before: `9ef6428` (T-0026 cancellation bookkeeping).
+`a8dba26 feat: session usage feed + status/table mirror (T-0028)`. Before: `062e855` (T-0027).
 
 ## README Status
 
-No README change required by this snapshot rewrite (workflow bookkeeping only). Last product coverage predates M5; the M5 README pass is T-0029 (PLANNED).
+T-0029 draft written 2026-10-11 (IN_PROGRESS): human flow setup → models → tools/approvals → images → sessions → cleanup → commands/settings tables → external → troubleshooting; agent entry points as links. Pending owner read-through for VERIFIED.
 
 ## Important Context
 
@@ -91,4 +91,4 @@ No README change required by this snapshot rewrite (workflow bookkeeping only). 
 
 ## Resume Instruction
 
-Read this snapshot first, then the current task file. Do not load all historical task/bug records merely to get oriented. Next: start T-0028 when the user asks.
+Read this snapshot first, then the current task file. Do not load all historical task/bug records merely to get oriented. Next: owner read-through of the T-0029 README draft.

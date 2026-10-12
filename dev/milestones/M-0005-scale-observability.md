@@ -2,7 +2,7 @@
 
 ## Status
 
-PLANNED (2026-10-10, user-scoped)
+COMPLETE (2026-10-12; T-0024/T-0025/T-0027/T-0028/T-0029/T-0030 VERIFIED, T-0026 CANCELLED)
 
 ## Objective
 
@@ -25,9 +25,9 @@ Make the 1:1 conversation→session map observable and bounded per workspace, fe
 
 ## Exit Criteria
 
-- [ ] `typescript@6.0.3`, `npm run lint` + `npm test` green
-- [ ] Cap enforced per directory group; status/table shows per-group counts
-- [ ] `oct.showSessions` table shows last chat, copilot id, opencode id, group
+- [x] `typescript@6.0.3`, `npm run lint` + `npm test` green (T-0024; re-confirmed green 2026-10-12: `lint` + `test` 203/203)
+- [x] Cap enforced per directory group; status/table shows per-group counts (T-0025 per-workspace cap + T-0027 table + T-0028 usage cells)
+- [x] `oct.showSessions` table shows last chat, copilot id, opencode id, group (T-0027; Tokens column added by T-0028)
 - [x] Turns emit `usage` DataPart; core Session Info shows non-zero context; status mirrors used/context/output
 - [ ] ~~`cleanupOrphans` deletes engine sessions of deleted Copilot chats (404-checked, confirmed)~~ DROPPED with T-0026 (goal corrected 2026-10-12; blocked — no chat-deletion API; parked PL-0007; graveyard-only scope kept)
 - [x] README rewritten for human setup/usage; model-switch behavior tested
@@ -55,4 +55,4 @@ None promoted (PL-0005/PL-0006 stay parked; PL-0007 added 2026-10-12 for the can
 
 ## Notes
 
-Summary/navigation only. Detail in `dev/tasks/T-0024..T-0030`.
+Summary/navigation only. Detail in `dev/tasks/done/T-0024..T-0030`.

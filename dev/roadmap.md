@@ -5,7 +5,7 @@
 
 ## Current Milestone
 
-M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap, retired-cleanup, session table, session stats, human README, model-switch regression). See `dev/milestones/M-0005-scale-observability.md`.
+M5 — COMPLETE (2026-10-12): scale + observability (TS 6.0.3, per-workspace cap, session table, session stats, human README, model-switch regression; T-0026 cancelled). See `dev/milestones/M-0005-scale-observability.md`.
 
 ## Tasks
 
@@ -42,7 +42,7 @@ M5 — PLANNED (2026-10-10): scale + observability (TS 6.0.3, per-workspace cap,
 
 ## Future Milestones
 
-- None — M5 active (T-0024/T-0025/T-0027/T-0028/T-0029/T-0030 VERIFIED 2026-10-10/11/12; T-0026 CANCELLED).
+- None — M5 COMPLETE 2026-10-12; no next milestone scoped.
 
 ## Roadmap Rules
 

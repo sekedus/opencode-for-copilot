@@ -9,19 +9,19 @@ BUILD
 
 ## State Integrity
 
-CONSISTENT (M5: T-0024/T-0025/T-0027/T-0028/T-0029/T-0030 VERIFIED + T-0026 CANCELLED in `dev/tasks/done/`; no active task)
+CONSISTENT (M5 COMPLETE 2026-10-12: T-0024/T-0025/T-0027/T-0028/T-0029/T-0030 VERIFIED + T-0026 CANCELLED in `dev/tasks/done/`; no active task, no open milestone)
 
 ## Current Milestone
 
-M5 — IN_PROGRESS (2026-10-10): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). T-0024/T-0025/T-0027/T-0028/T-0029/T-0030 VERIFIED; T-0026 CANCELLED; no open tasks.
+M5 — COMPLETE (2026-10-12): scale + observability (see `dev/milestones/M-0005-scale-observability.md`). All tasks VERIFIED except T-0026 CANCELLED; no open tasks.
 
 ## Current Task
 
-None (T-0030 VERIFIED 2026-10-12; no open tasks).
+None (M5 COMPLETE 2026-10-12; no open tasks, no open milestone).
 
 ## Current Step
 
-T-0030 VERIFIED 2026-10-12 (`lint` + `test` 203/203 + `compile` green + owner EDH PASS: same id, dropped/deleted notices, no new session). Moved to `dev/tasks/done/`. Next: commit checkpoint.
+M5 marked COMPLETE 2026-10-12 (exit criteria all met: TS 6.0.3 + `lint`/`test` 203/203 green, per-group cap + status/table, `showSessions` table, usage DataPart, README rewrite, model-switch EDH PASS; T-0026 CANCELLED/blocked, parked PL-0007). Next: commit checkpoint.
 
 ## Objective
 
@@ -37,11 +37,11 @@ Build a VS Code extension bridging local opencode v2 (`opencode serve`) into Cop
 
 ## Last State Transaction
 
-STATE_T-0030_VERIFIED
+STATE_M5_COMPLETED
 
 ## Next Action
 
-Commit checkpoint for T-0030 (policy: ASK) — note worktree also holds unrelated uncommitted docs (README Limits merge + IMPORTANT note, PL-0008, T-0026 goal-correction sync); confirm commit scope with the user.
+Commit checkpoint for M5 completion (authorized), then await user's next direction.
 
 ## Current Blocker
 
@@ -62,7 +62,7 @@ None.
 
 ## Verification Snapshot
 
-Status: VERIFIED (T-0030 2026-10-12: `lint` + `test` 203/203 + `compile` green + owner EDH PASS: same id, dropped/deleted notices, no new session. Prior: T-0028 2026-10-11 `lint`/`test` 203/203 + `compile` + EDH PASS; T-0027 `lint`/`test` 185/185 + `compile` + EDH PASS; T-0025 `lint`/`test` 159/159 + `compile` + EDH PASS. T-0026 CANCELLED.)
+Status: COMPLETE (M5 2026-10-12: all exit criteria met; `lint` + `test` 203/203 green re-confirmed. Tasks: T-0030 `lint`/`test` 203/203 + `compile` + EDH PASS; T-0028 `lint`/`test` 203/203 + `compile` + EDH PASS; T-0027 `lint`/`test` 185/185 + `compile` + EDH PASS; T-0025 `lint`/`test` 159/159 + `compile` + EDH PASS. T-0026 CANCELLED.)
 
 ## Commit Policy
 
@@ -73,15 +73,15 @@ See `dev/commit-policy.md`.
 
 ## Last Commit
 
-`4dc161f docs: human-readable README rewrite (T-0029)`. Before: `a8dba26` (T-0028).
+`853d49b feat: verify T-0030 model-switch regression + docs/state sync` (8 files: T-0030 → done/VERIFIED, README Limits merge + stay-on-OCT note, PL-0008, T-0026 goal correction, roadmap/milestone/now sync). Before: `4dc161f` (T-0029).
 
 ## README Status
 
-T-0029 draft written 2026-10-11 (IN_PROGRESS): human flow setup → models → tools/approvals → images → sessions → cleanup → commands/settings tables → external → troubleshooting; agent entry points as links. Pending owner read-through for VERIFIED.
+T-0029 VERIFIED 2026-10-11 (human README rewrite, owner read-through PASS).
 
 ## Important Context
 
-- M5 IN_PROGRESS: T-0024/T-0025 (`f1e118c`) + T-0027/T-0028/T-0029/T-0030 VERIFIED; T-0026 CANCELLED; no open tasks.
+- M5 COMPLETE 2026-10-12: T-0024/T-0025/T-0027/T-0028/T-0029/T-0030 VERIFIED; T-0026 CANCELLED; no open tasks or milestones.
 - Workflow AAW 0.7.3 (`c9739b8`, manifest `.aaw/manifest.yml`).
 - Bug-fix records use stable IDs in `dev/bug-fixes/done/B-000X-*.md`: B-0001 (session map), B-0002 (turn errors + drive case), B-0003 (re-emit spin), B-0004 (continuation starvation + retry breaker), B-0005 (denial error UX).
 - Local toolchain: opencode v2.0.21; VS Code 1.125+ (see `dev/verification.md` for prerequisites).
@@ -94,4 +94,4 @@ T-0029 draft written 2026-10-11 (IN_PROGRESS): human flow setup → models → t
 
 ## Resume Instruction
 
-Read this snapshot first, then the current task file (none active). Do not load all historical task/bug records merely to get oriented. Next: commit checkpoint for T-0030 (policy: ASK).
+Read this snapshot first, then the current task file (none active). Do not load all historical task/bug records merely to get oriented. Next: commit checkpoint for M5 completion (authorized).

@@ -115,3 +115,70 @@ Revisit When:
 VS Code exposes an OS-toast API to extensions (stable or
 `enabledApiProposals`), or a proven extension-side delivery path is found
 (banner visibly confirmed in EDH, not just History-landed).
+
+## PL-0007
+
+Date: 2026-10-12
+
+Idea:
+
+Extend `oct.cleanupOrphans` so that when the Copilot chat behind a mapping
+is deleted, the mapped opencode engine session is deleted too (behind the
+same Delete confirmation; 404-checked; unmapped CLI sessions never touched).
+(Correct goal of cancelled T-0026; the dead/dropped-mark proxy was the
+agent's misunderstanding.)
+
+Triggered By:
+
+T-0026 goal correction 2026-10-12: the user asked for Copilot-chat-deletion-
+driven cleanup, which the provider API cannot currently observe.
+
+Action:
+
+DEFER (blocked upstream)
+
+Reason:
+
+VS Code exposes no Copilot chat list or deletion signal to
+`LanguageModelChatProvider` providers. The provider only learns a chat
+exists when Copilot routes a turn to it (`modelOptions._conversationId`),
+so a deleted chat is indistinguishable from an idle one. Dead/dropped
+retired marks (T-0013/T-0019) are not equivalent to chat deletion and stay
+as-is.
+
+Revisit When:
+
+VS Code ships a provider-visible Copilot chat/session listing or deletion
+signal (stable or `enabledApiProposals`).
+
+## PL-0008
+
+Date: 2026-10-12
+
+Idea:
+
+Ferry non-OCT turns into the mapped opencode session so switching to a
+Copilot/other model mid-chat and back leaves no memory gap.
+
+Triggered By:
+
+T-0030 model-switch probe 2026-10-12: 5-turn chat (1, 2, 5 OCT; 3, 4 other
+vendor) — opencode session has no knowledge of turns 3-4 while the host
+transcript shows all turns; README now warns to stay on OCT.
+
+Action:
+
+DEFER
+
+Reason:
+
+Outside M5 scope. Provider gets no callback on non-OCT turns (host routes
+them elsewhere), so there is no hook today to observe/forward them;
+ferrying would need a transcript-diff + inject-as-history design with
+tool/approval implications.
+
+Revisit When:
+
+After T-0030, when a concrete ferry design exists (how to read host
+transcript for the conversation key and replay non-OCT turns without
+forking/duplicating engine history).

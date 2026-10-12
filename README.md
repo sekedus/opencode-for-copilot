@@ -108,8 +108,19 @@ Limits: 15 MB per image, up to 50 images / 40 MB per turn. Oversize images degra
 
 - At most **200 mapped conversations per workspace folder** (setting `oct.maxSessions`).  
   When a folder is full, entries for deleted sessions go first, then the oldest; other folders are never evicted to make room.
-- If the engine session itself was deleted and you keep chatting there, you'll see: `OCT: the opencode session for this chat was deleted – start a new Copilot chat.` Nothing is recreated behind your back.
-- If the *link* was dropped (eviction, prune) but the engine session may still exist, you'll see: `OCT: the opencode session link for this chat was dropped – start a new Copilot chat.` The leftover session id is remembered for cleanup (below).
+- **Dead chats stay dead.**  
+  If the engine session was deleted you'll see: `OCT: the opencode session for this chat was deleted – start a new Copilot chat.` If the *link* was dropped (eviction, prune) but the engine session may still exist, you'll see: `OCT: the opencode session link for this chat was dropped – start a new Copilot chat.` Nothing is recreated or forked behind your back. The leftover session id is remembered for cleanup (below).
+- **No OS notifications.**  
+  Approvals and notices appear inside VS Code only. If you're looking at another window, nothing pings you – extensions have no API for real system toasts.
+- **Engine approvals ignore the per-chat permissions picker.**  
+  Only the global `chat.permissions.default` setting (Settings UI or JSON) controls them; the picker still governs Copilot's own tools.
+- **Switching models mid-chat splits memory.**  
+  OCT never sees turns taken on a Copilot/other model – switching back resumes the same opencode session with that gap. Copilot sees the full chat transcript instead, including OCT turns, even if the OCT link is later dropped/deleted.
+
+<br>
+
+> [!IMPORTANT]  
+> Start a chat with an OCT model and stay on OCT – don't switch to a Copilot/other model mid-chat (and vice versa). The opencode session never sees non-OCT turns, so switching back leaves a gap in its memory.
 
 <br>
 
@@ -158,17 +169,6 @@ You normally don't need this – empty `oct.opencodeUrl` (managed mode) just wor
 2. Copy `plugin/oct-tools` onto that server and add its absolute path to the server's `plugins` config.
 3. Export `OCT_CALLBACK_URL` (shown by `OCT: Show Status`) and `OCT_CALLBACK_TOKEN` (your token) for that server.
 4. Make that server ask-first for permissions (ask-all), otherwise Default → ask can't be enforced there.
-
-<br>
-
-## Limitations
-
-- **Dead chats stay dead.**  
-  If the opencode session was deleted – or its link was dropped – that Copilot chat can't continue; start a new chat. Nothing is recreated or forked behind your back.
-- **No OS notifications.**  
-  Approvals and notices appear inside VS Code only. If you're looking at another window, nothing pings you – extensions have no API for real system toasts.
-- **Engine approvals ignore the per-chat permissions picker.**  
-  Only the global `chat.permissions.default` setting (Settings UI or JSON) controls them; the picker still governs Copilot's own tools.
 
 <br>
 

@@ -12,7 +12,7 @@ Make the 1:1 conversation→session map observable and bounded per workspace, fe
 
 - TS 6.0.3 upgrade (T-0024)
 - Per-workspace/folder/group cap (T-0025)
-- `cleanupOrphans` also deletes engine sessions for retired chats (T-0026)
+- `cleanupOrphans` also deletes engine sessions of deleted Copilot chats (T-0026, CANCELLED — blocked, parked PL-0007)
 - Session map table by group (T-0027, ref `Show Workspaces`)
 - Opencode session stats in Copilot Session Info + status (T-0028)
 - Human-readable README (T-0029)
@@ -29,22 +29,22 @@ Make the 1:1 conversation→session map observable and bounded per workspace, fe
 - [ ] Cap enforced per directory group; status/table shows per-group counts
 - [ ] `oct.showSessions` table shows last chat, copilot id, opencode id, group
 - [x] Turns emit `usage` DataPart; core Session Info shows non-zero context; status mirrors used/context/output
-- [ ] ~~`cleanupOrphans` deletes graveyard + dead/dropped engine sessions (404-checked, confirmed)~~ DROPPED with T-0026 (cancelled 2026-10-10; graveyard-only scope kept)
-- [ ] README rewritten for human setup/usage; model-switch behavior tested
+- [ ] ~~`cleanupOrphans` deletes engine sessions of deleted Copilot chats (404-checked, confirmed)~~ DROPPED with T-0026 (goal corrected 2026-10-12; blocked — no chat-deletion API; parked PL-0007; graveyard-only scope kept)
+- [x] README rewritten for human setup/usage; model-switch behavior tested
 
 ## Tasks
 
 - [x] T-0024 — TypeScript 6.0.3 upgrade
 - [x] T-0025 — Per-workspace session cap
-- [ ] ~~T-0026 — Cleanup retired engine sessions~~ CANCELLED 2026-10-10 (owner decision; graveyard-only cleanup kept)
+- [ ] ~~T-0026 — Cleanup engine sessions of deleted Copilot chats~~ CANCELLED 2026-10-10, goal corrected 2026-10-12 (blocked — no chat-deletion API; parked PL-0007)
 - [x] T-0027 — Session map table (webview)
 - [x] T-0028 — Session stats (usage DataPart + status)
 - [x] T-0029 — Human-readable README
-- [ ] T-0030 — Model-switch regression (exist/dropped/deleted)
+- [x] T-0030 — Model-switch regression (exist/dropped/deleted)
 
 ## Related Parking-Lot Ideas
 
-None promoted (PL-0005/PL-0006 stay parked).
+None promoted (PL-0005/PL-0006 stay parked; PL-0007 added 2026-10-12 for the cancelled T-0026 goal; PL-0008 added 2026-10-12 for non-OCT-turn ferry, triggered by the T-0030 probe).
 
 ## Constraints / Decisions
 

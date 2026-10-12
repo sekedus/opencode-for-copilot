@@ -73,7 +73,7 @@ See `dev/commit-policy.md`.
 
 ## Last Commit
 
-`853d49b feat: verify T-0030 model-switch regression + docs/state sync` (8 files: T-0030 → done/VERIFIED, README Limits merge + stay-on-OCT note, PL-0008, T-0026 goal correction, roadmap/milestone/now sync). Before: `4dc161f` (T-0029).
+`cfcbe05 docs: mark M5 scale-observability complete, sync stale state` (milestone COMPLETE + exit boxes checked, roadmap/now sync, stale T-0029 README line fixed). Before: `853d49b` (T-0030).
 
 ## README Status
 
